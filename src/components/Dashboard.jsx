@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { LogOut, Home, Grid3X3, Smile, Moon, Map, BookOpen, Download, Menu, X, Settings } from 'lucide-react'
+import { LogOut, Home, Grid3X3, Smile, Moon, Map, BookOpen, Download, Menu, X, Settings, Users } from 'lucide-react'
 import HabitGrid from './HabitGrid'
 import AddHabitModal from './AddHabitModal'
 import MoodTracker from './MoodTracker'
@@ -11,6 +11,7 @@ import Journal from './Journal'
 import StatsBar from './StatsBar'
 import ExportModal from './ExportModal'
 import SettingsModal from './SettingsModal'
+import NetworkDashboard from './NetworkDashboard'
 
 const NAV_ITEMS = [
   { id: 'home', label: 'Home', icon: Home },
@@ -19,6 +20,7 @@ const NAV_ITEMS = [
   { id: 'mood', label: 'Mood', icon: Smile },
   { id: 'sleep', label: 'Sleep', icon: Moon },
   { id: 'map', label: 'Map', icon: Map },
+  { id: 'circle', label: 'Circle', icon: Users },
 ]
 
 export default function Dashboard({ store }) {
@@ -225,6 +227,7 @@ export default function Dashboard({ store }) {
               {{
                 tracker: 'Tracker', journal: 'Journal',
                 mood: 'Mood', sleep: 'Sleep', map: 'Consistency',
+                circle: 'Growth Circle'
               }[activeTab]}
             </h1>
           </div>
@@ -276,6 +279,7 @@ export default function Dashboard({ store }) {
             {activeTab === 'mood' && <MoodTracker moods={moods} logMood={logMood} />}
             {activeTab === 'sleep' && <SleepTracker sleepLogs={sleepLogs} logSleep={logSleep} />}
             {activeTab === 'map' && <ConsistencyMap getHeatmapData={getHeatmapData} habits={habits} />}
+            {activeTab === 'circle' && <NetworkDashboard />}
           </motion.div>
         </AnimatePresence>
       </main>
