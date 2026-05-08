@@ -528,323 +528,264 @@ export function useStore() {
     return lines.join('\n')
   }, [habits, journalEntries, moods])
 
-  const buildPrintHTML = useCallback(() => {
+  const buildPrintHTML = useCallback((mode = 'monthly') => {
     const now = new Date()
-    const monthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     const dateStr = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    const todayIso = now.toISOString().slice(0, 10)
 
-    // ——— Compute meaningful stats ——————————————————————————————————————
-    const activeDays = Object.values(
-      habits.reduce((acc, h) => {
-        Object.keys(completions).filter(k => k.startsWith(h.id + '_')).forEach(k => { acc[k.split('_')[1]] = true })
-        return acc
-      }, {})
-    ).length
+    let title, subtitle, timeframe
+    if (mode === 'daily') {
+      title = 'Daily Reflection'
+      subtitle = 'A calm snapshot of today.'
+      timeframe = 1
+    } else if (mode === 'weekly') {
+      title = 'Weekly Rhythm'
+      subtitle = 'A cinematic summary of your week.'
+      timeframe = 7
+    } else {
+      title = 'Monthly Chapter'
+      subtitle = 'A reflection chapter of your life.'
+      timeframe = 30
+    }
 
-    const last30Days = Array.from({ length: 30 }, (_, i) => {
+    const pastDays = Array.from({ length: timeframe }, (_, i) => {
       const d = new Date(now); d.setDate(d.getDate() - i)
       return d.toISOString().slice(0, 10)
     })
 
-    const activeLast30 = last30Days.filter(d => habits.some(h => completions[`${h.id}_${d}`])).length
+    const activeDaysCount = pastDays.filter(d => habits.some(h => completions[`${h.id}_${d}`])).length
+    const consistencyPct = Math.round((activeDaysCount / timeframe) * 100) || 0
 
-    const bestStreak = (() => {
-      let best = 0, cur = 0
-      for (let i = 364; i >= 0; i--) {
-        const d = new Date(now); d.setDate(now.getDate() - i)
-        const iso = d.toISOString().slice(0, 10)
-        if (habits.some(h => completions[`${h.id}_${iso}`])) { cur++; best = Math.max(best, cur) } else cur = 0
-      }
-      return best
-    })()
+    let rhythmMessage = ""
+    if (timeframe === 1) {
+      if (activeDaysCount > 0) rhythmMessage = "Momentum formed softly today. You showed up."
+      else rhythmMessage = "A quieter day, but still moving. Rest is part of the rhythm."
+    } else {
+      if (consistencyPct >= 80) rhythmMessage = "A remarkable rhythm. You kept returning, and it shows."
+      else if (consistencyPct >= 50) rhythmMessage = "A steady momentum. Consistency quietly deepened."
+      else rhythmMessage = "A softer rhythm formed. You are still becoming."
+    }
 
     const topHabit = habits.reduce((best, h) => {
-      const done = last30Days.filter(d => completions[`${h.id}_${d}`]).length
+      const done = pastDays.filter(d => completions[`${h.id}_${d}`]).length
       return done > (best?.done || 0) ? { ...h, done } : best
     }, null)
 
-    const avgSleep = (() => {
-      const valid = sleepLogs.slice(0, 30).filter(s => s.hours > 0)
-      return valid.length ? (valid.reduce((s, l) => s + l.hours, 0) / valid.length).toFixed(1) : null
-    })()
-
-    const avgMood = (() => {
-      const valid = moods.slice(0, 30)
-      return valid.length ? (valid.reduce((s, m) => s + m.mood, 0) / valid.length).toFixed(1) : null
-    })()
-
-    const moodLabels = { 5: 'amazing', 4: 'good', 3: 'okay', 2: 'difficult', 1: 'hard' }
-    const avgMoodLabel = avgMood ? moodLabels[Math.round(parseFloat(avgMood))] : null
-
-    const bestJournal = journalEntries.find(e => e.reflection?.length > 40) || journalEntries[0]
-    const allWins = journalEntries.flatMap(e => e.wins || [])
-    const allGratitude = journalEntries.flatMap(e => e.gratitude || [])
-
-    // ——— Narrative paragraphs ——————————————————————————————————————
-    const habitNarrative = (() => {
-      if (habits.length === 0) return "You haven't started tracking rituals yet. That's okay — every beginning starts somewhere."
-      if (activeLast30 === 0) return "This period has been quieter. Rest and pausing are part of any sustainable rhythm. You can always begin again."
-      const consistency = Math.round((activeLast30 / 30) * 100)
-      if (consistency >= 80) return `You showed up on ${activeLast30} of the last 30 days — a remarkable level of consistency. You're not just tracking habits, you're building identity.`
-      if (consistency >= 50) return `You were present on ${activeLast30} of the last 30 days. More than half. That's real, even when it doesn't feel like enough.`
-      return `You engaged on ${activeLast30} days this period. Some months are harder. What matters is that you returned — and you're here now.`
-    })()
-
-    const moodNarrative = (() => {
-      if (!avgMood || moods.length < 3) return "You haven't logged many moods yet. Tracking how you feel — even briefly — can reveal patterns you didn't know were there."
+    const relevantMoods = moods.filter(m => pastDays.includes(m.date))
+    const avgMood = relevantMoods.length ? (relevantMoods.reduce((s, m) => s + m.mood, 0) / relevantMoods.length).toFixed(1) : null
+    
+    let emotionalMessage = "Emotions are the weather of the mind."
+    if (avgMood) {
       const score = parseFloat(avgMood)
-      const label = avgMoodLabel
-      if (score >= 4) return `Your emotional landscape this period was predominantly ${label}. You carried yourself well. On your harder days, you still showed up — and that says something real about your character.`
-      if (score >= 3) return `Your average mood was ${label} — mostly in the middle, which is honest and human. Life isn't always dramatic. Sometimes 'okay' is deeply meaningful.`
-      return `This has been a harder period emotionally. Your average mood trended toward ${label}. Be gentle with yourself — logging these days takes courage, and recognizing difficulty is the first step through it.`
-    })()
+      if (score >= 4) emotionalMessage = "Your emotional landscape was predominantly bright. You carried yourself well."
+      else if (score >= 3) emotionalMessage = "Your mood was gently balanced. Life isn't always dramatic, and 'okay' is deeply meaningful."
+      else emotionalMessage = "A heavier emotional period. Be gentle with yourself — recognizing difficulty is courage."
+    }
 
-    const sleepNarrative = (() => {
-      if (!avgSleep) return "Sleep data isn't available for this period. Rest shapes almost everything — how you feel, think, and connect. Consider logging it."
-      const hours = parseFloat(avgSleep)
-      if (hours >= 7.5) return `You averaged ${avgSleep} hours of sleep — restful and restorative. This shows up everywhere: in your mood, your focus, your patience with yourself. Rest is never wasted.`
-      if (hours >= 6) return `You averaged ${avgSleep} hours of sleep this period. Some nights were lighter than ideal, but you kept moving. When rest improves, everything else tends to follow.`
-      return `Your sleep has been lighter than ideal this period, averaging ${avgSleep} hours. Your body and mind are telling you something. Deep rest is the foundation everything else is built on.`
-    })()
+    const relevantJournals = journalEntries.filter(e => pastDays.includes(e.date))
+    const bestJournal = relevantJournals.find(e => e.reflection?.length > 40) || relevantJournals[0]
+    const wins = relevantJournals.flatMap(e => e.wins || [])
+    const gratitude = relevantJournals.flatMap(e => e.gratitude || [])
 
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Kaizen — Personal Growth Letter</title>
+  <title>Kaizen — ${title}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     @page { size: A4 portrait; margin: 0; }
 
     html, body {
       width: 210mm; height: 297mm; overflow: hidden;
-      background: #FAF9F6; color: #1A1035;
-      font-family: 'DM Sans', Arial, sans-serif;
+      background: linear-gradient(145deg, #FDFCFB 0%, #F4F1FA 100%);
+      color: #1A1035;
+      font-family: 'Inter', sans-serif;
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
 
     .page {
       width: 210mm; height: 297mm;
-      padding: 24mm 22mm 18mm;
-      display: grid;
-      grid-template-rows: auto auto 1fr auto;
-      gap: 0;
-      overflow: hidden;
+      padding: 24mm;
+      display: flex; flex-direction: column;
+      position: relative;
     }
 
-    /* ——— Header ——— */
+    /* Ambient background blobs for emotional depth */
+    .bg-glow-1 { position: absolute; top: -50mm; right: -50mm; width: 150mm; height: 150mm; background: radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 70%); border-radius: 50%; z-index: 0; }
+    .bg-glow-2 { position: absolute; bottom: -20mm; left: -20mm; width: 200mm; height: 200mm; background: radial-gradient(circle, rgba(196,181,253,0.12) 0%, transparent 70%); border-radius: 50%; z-index: 0; }
+
+    .content-wrapper { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; }
+
+    /* Header */
     .header {
-      display: flex; justify-content: space-between; align-items: flex-end;
-      padding-bottom: 12px; border-bottom: 1.5px solid #1A1035;
-      margin-bottom: 4px;
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 28px;
     }
-    .wordmark { font-family: 'DM Serif Display', serif; font-size: 40px; letter-spacing: -1.5px; color: #1A1035; line-height: 1; }
-    .header-meta { text-align: right; }
-    .header-label { font-size: 8px; letter-spacing: 0.14em; text-transform: uppercase; color: #7C5CBF; font-weight: 600; margin-bottom: 2px; }
-    .header-date { font-size: 10px; color: #9B93B8; }
+    .header-left { flex: 1; }
+    .brand { font-family: 'DM Serif Display', serif; font-size: 20px; color: #7C3AED; margin-bottom: 24px; opacity: 0.8; }
+    .title { font-family: 'DM Serif Display', serif; font-size: 46px; line-height: 1.1; color: #1A1035; margin-bottom: 6px; letter-spacing: -0.02em; }
+    .subtitle { font-size: 14px; color: #6D638C; font-weight: 400; letter-spacing: 0.02em; font-style: italic; }
+    
+    .header-right { text-align: right; }
+    .date-badge { display: inline-block; padding: 6px 14px; background: rgba(255,255,255,0.6); border: 1px solid rgba(139,92,246,0.15); border-radius: 20px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #5B4A82; font-weight: 600; box-shadow: 0 4px 20px rgba(0,0,0,0.02); }
 
-    .tagline { font-family: 'DM Serif Display', serif; font-size: 11px; font-style: italic; color: #7C5CBF; margin-top: 8px; margin-bottom: 0; }
-
-    /* ——— Grid body ——— */
-    .body { display: grid; grid-template-columns: 1fr 1fr; column-gap: 22px; row-gap: 0; padding-top: 16px; }
-
-    /* ——— Sections ——— */
-    .section { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid #EAE6F4; }
-    .section:last-child { border-bottom: none; }
-    .section-label { font-size: 8px; letter-spacing: 0.16em; text-transform: uppercase; color: #7C5CBF; font-weight: 600; margin-bottom: 6px; }
-
-    .section-heading { font-family: 'DM Serif Display', serif; font-size: 16px; color: #1A1035; margin-bottom: 8px; line-height: 1.2; }
-    .section-body { font-size: 11px; color: #4A3D72; line-height: 1.65; }
-
-    /* ——— Stat callout ——— */
-    .stat-row { display: flex; gap: 12px; margin-bottom: 10px; }
-    .stat-block { flex: 1; }
-    .stat-num { font-family: 'DM Serif Display', serif; font-size: 28px; color: #1A1035; line-height: 1; letter-spacing: -1px; }
-    .stat-desc { font-size: 10px; color: #9B93B8; margin-top: 2px; line-height: 1.4; }
-
-    /* ——— Journal quote ——— */
-    .quote-block { padding: 12px 16px; background: rgba(124,92,191,0.04); border-left: 2px solid rgba(196,181,253,0.6); border-radius: 0 8px 8px 0; margin: 8px 0; }
-    .quote-text { font-family: 'DM Serif Display', serif; font-size: 12px; font-style: italic; color: #1A1035; line-height: 1.55; }
-    .quote-date { font-size: 9px; color: #9B93B8; margin-top: 5px; }
-
-    /* ——— List ——— */
-    .item-list { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
-    .item { font-size: 10px; color: #4A3D72; padding: 4px 0; border-bottom: 1px solid rgba(234,230,244,0.5); display: flex; gap: 8px; align-items: flex-start; }
-    .item-bullet { color: #7C5CBF; font-size: 8px; margin-top: 3px; flex-shrink: 0; }
-
-    /* ——— Habits row ——— */
-    .habit-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: rgba(245,243,255,0.8); border: 1px solid rgba(196,181,253,0.3); border-radius: 99px; font-size: 9px; color: #4A3D72; margin: 2px; }
-
-    /* ——— Footer ——— */
-    .footer { border-top: 1px solid #EAE6F4; padding-top: 10px; display: flex; justify-content: space-between; align-items: center; }
-    .footer-brand { font-family: 'DM Serif Display', serif; font-size: 12px; color: #C4B5FD; }
-    .footer-note { font-size: 9px; color: #C4B5FD; letter-spacing: 0.05em; font-style: italic; }
-
-    @media print {
-      html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    /* Narrative Section */
+    .narrative-card {
+      background: rgba(255,255,255,0.7);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.8);
+      border-radius: 16px;
+      padding: 24px 32px;
+      margin-bottom: 28px;
+      box-shadow: 0 10px 40px rgba(139,92,246,0.04), inset 0 1px 0 rgba(255,255,255,1);
     }
+    .narrative-text {
+      font-family: 'DM Serif Display', serif;
+      font-size: 20px; color: #2D234A; line-height: 1.6; font-style: italic;
+    }
+
+    /* Grid Layout */
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; flex: 1; }
+
+    .card {
+      background: rgba(255,255,255,0.5);
+      border: 1px solid rgba(139,92,246,0.1);
+      border-radius: 16px;
+      padding: 24px;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+
+    .card-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: #7C3AED; font-weight: 600; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .card-title::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(139,92,246,0.2), transparent); }
+
+    .stat-val { font-family: 'DM Serif Display', serif; font-size: 42px; color: #1A1035; line-height: 1; margin-bottom: 4px; }
+    .stat-label { font-size: 12px; color: #6D638C; line-height: 1.4; }
+
+    .quote-box {
+      position: relative;
+      padding: 16px 20px;
+      background: linear-gradient(135deg, rgba(139,92,246,0.05), transparent);
+      border-left: 2px solid #8B5CF6;
+      border-radius: 0 12px 12px 0;
+      margin-top: 8px;
+    }
+    .quote-text { font-family: 'DM Serif Display', serif; font-size: 16px; color: #2D234A; line-height: 1.6; font-style: italic; }
+
+    /* Lists */
+    .list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+    .list-item { font-size: 13px; color: #3A2F5A; display: flex; align-items: flex-start; gap: 12px; line-height: 1.5; }
+    .bullet { color: #8B5CF6; font-size: 14px; margin-top: -2px; }
+
+    /* Footer */
+    .footer {
+      margin-top: auto; padding-top: 24px;
+      border-top: 1px solid rgba(139,92,246,0.1);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .footer-text { font-size: 10px; color: #9B93B8; letter-spacing: 0.05em; }
+    .footer-brand { font-family: 'DM Serif Display', serif; font-size: 14px; color: #7C3AED; opacity: 0.6; }
+
   </style>
 </head>
 <body>
-<div class="page">
-
-  <!-- Header -->
-  <div>
-    <div class="header">
-      <div class="wordmark">Kaizen</div>
-      <div class="header-meta">
-        <div class="header-label">Personal Growth Letter</div>
-        <div class="header-date">${dateStr}</div>
-      </div>
-    </div>
-    <p class="tagline">"Small steps. Lasting change."</p>
-  </div>
-
-  <!-- Opening paragraph — full width -->
-  <div style="padding: 14px 0 0; border-bottom: 1px solid #EAE6F4; margin-bottom: 0;">
-    <p style="font-family: 'DM Serif Display', serif; font-size: 13px; color: #1A1035; line-height: 1.65; font-style: italic; padding-bottom: 14px;">
-      ${habitNarrative}
-    </p>
-  </div>
-
-  <!-- Two-column body -->
-  <div class="body">
-
-    <!-- LEFT column -->
-    <div>
-      <!-- Habits section -->
-      <div class="section">
-        <div class="section-label">On Habits</div>
-        ${habits.length > 0 ? `
-          <div class="stat-row">
-            <div class="stat-block">
-              <div class="stat-num">${habits.length}</div>
-              <div class="stat-desc">rituals you're tracking</div>
-            </div>
-            <div class="stat-block">
-              <div class="stat-num">${activeDays}</div>
-              <div class="stat-desc">days you showed up</div>
-            </div>
-            ${bestStreak > 0 ? `
-            <div class="stat-block">
-              <div class="stat-num">${bestStreak}</div>
-              <div class="stat-desc">days in a row at your best</div>
-            </div>` : ''}
-          </div>
-          ${topHabit ? `<p class="section-body">Your most consistent ritual was <strong>${topHabit.name}</strong> — present ${topHabit.done} times in the last 30 days. Some habits quietly become part of who you are.</p>` : ''}
-          <div style="margin-top: 8px;">
-            ${habits.slice(0, 8).map(h => `<span class="habit-tag">${h.name}</span>`).join('')}
-          </div>
-        ` : `<p class="section-body">No rituals tracked yet. Begin with one small thing — consistency follows from there.</p>`}
-      </div>
-
-      <!-- Mood section -->
-      <div class="section">
-        <div class="section-label">On Your Emotional Landscape</div>
-        ${avgMood ? `
-          <div class="stat-row" style="margin-bottom: 8px;">
-            <div class="stat-block">
-              <div class="stat-num">${avgMood}</div>
-              <div class="stat-desc">average mood (out of 5)<br>generally ${avgMoodLabel}</div>
-            </div>
-            <div class="stat-block">
-              <div class="stat-num">${moods.length}</div>
-              <div class="stat-desc">feelings logged</div>
-            </div>
-          </div>
-        ` : ''}
-        <p class="section-body">${moodNarrative}</p>
-      </div>
-
-      <!-- Sleep section -->
-      <div class="section" style="border-bottom: none;">
-        <div class="section-label">On Rest</div>
-        ${avgSleep ? `
-          <div class="stat-row" style="margin-bottom: 8px;">
-            <div class="stat-block">
-              <div class="stat-num">${avgSleep}h</div>
-              <div class="stat-desc">average per night<br>${sleepLogs.length} nights logged</div>
-            </div>
-            <div class="stat-block">
-              <div class="stat-num">${sleepLogs.filter(s => s.hours >= 7.5).length}</div>
-              <div class="stat-desc">restful nights (7.5h+)</div>
-            </div>
-          </div>
-        ` : ''}
-        <p class="section-body">${sleepNarrative}</p>
-      </div>
-    </div>
-
-    <!-- RIGHT column -->
-    <div>
-      <!-- Journal section -->
-      <div class="section">
-        <div class="section-label">From Your Journal</div>
-        <p class="section-body" style="margin-bottom: 8px;">
-          ${journalEntries.length > 0
-            ? `You wrote ${journalEntries.length} ${journalEntries.length === 1 ? 'entry' : 'entries'}. Writing is how we make sense of what we're living through.`
-            : `Your journal is waiting. Even a single sentence — how you felt, what you noticed — becomes something meaningful to return to.`}
-        </p>
-        ${bestJournal?.reflection ? `
-          <div class="quote-block">
-            <div class="quote-text">"${bestJournal.reflection.slice(0, 280)}${bestJournal.reflection.length > 280 ? '…' : ''}"</div>
-            ${bestJournal.date ? `<div class="quote-date">— ${bestJournal.date}</div>` : ''}
-          </div>
-        ` : ''}
-      </div>
-
-      <!-- Wins -->
-      ${allWins.length > 0 ? `
-      <div class="section">
-        <div class="section-label">Wins Worth Remembering</div>
-        <div class="item-list">
-          ${allWins.slice(0, 5).map(w => `
-            <div class="item">
-              <span class="item-bullet">◆</span>
-              <span>${w}</span>
-            </div>
-          `).join('')}
+  <div class="page">
+    <div class="bg-glow-1"></div>
+    <div class="bg-glow-2"></div>
+    
+    <div class="content-wrapper">
+      <div class="header">
+        <div class="header-left">
+          <div class="brand">Kaizen</div>
+          <h1 class="title">${title}</h1>
+          <p class="subtitle">${subtitle}</p>
+        </div>
+        <div class="header-right">
+          <div class="date-badge">${dateStr}</div>
         </div>
       </div>
-      ` : ''}
 
-      <!-- Gratitude -->
-      ${allGratitude.length > 0 ? `
-      <div class="section">
-        <div class="section-label">Moments of Gratitude</div>
-        <div class="item-list">
-          ${allGratitude.slice(0, 4).map(g => `
-            <div class="item">
-              <span class="item-bullet">♡</span>
-              <span>${g}</span>
+      <div class="narrative-card">
+        <p class="narrative-text">${rhythmMessage}</p>
+      </div>
+
+      <div class="grid">
+        <!-- Left Column -->
+        <div style="display: flex; flex-direction: column; gap: 24px;">
+          
+          <div class="card">
+            <div class="card-title">Continuity</div>
+            <div style="display: flex; gap: 24px; align-items: center;">
+              <div>
+                <div class="stat-val">${consistencyPct}%</div>
+                <div class="stat-label">rhythm maintained</div>
+              </div>
+              <div style="width: 1px; height: 40px; background: rgba(139,92,246,0.1);"></div>
+              <div>
+                <div class="stat-val">${activeDaysCount}</div>
+                <div class="stat-label">days present</div>
+              </div>
             </div>
-          `).join('')}
+            ${topHabit ? \`<p style="font-size: 13px; color: #6D638C; margin-top: 8px; line-height: 1.5;">Your strongest anchor was <strong>\${topHabit.name}</strong>. It grounds you.</p>\` : ''}
+          </div>
+
+          <div class="card">
+            <div class="card-title">Emotional Landscape</div>
+            ${avgMood ? \`<div class="stat-val">\${avgMood}</div>\` : ''}
+            <p style="font-size: 13px; color: #6D638C; line-height: 1.5;">\${emotionalMessage}</p>
+          </div>
+
+          ${wins.length > 0 ? \`
+          <div class="card" style="flex: 1;">
+            <div class="card-title">Moments of Light</div>
+            <div class="list">
+              \${wins.slice(0, 4).map(w => \`<div class="list-item"><span class="bullet">✧</span><span>\${w}</span></div>\`).join('')}
+            </div>
+          </div>
+          \` : ''}
+
+        </div>
+
+        <!-- Right Column -->
+        <div style="display: flex; flex-direction: column; gap: 24px;">
+          
+          <div class="card">
+            <div class="card-title">From Your Journal</div>
+            ${bestJournal?.reflection ? \`
+              <div class="quote-box">
+                <p class="quote-text">"\${bestJournal.reflection.slice(0, 320)}\${bestJournal.reflection.length > 320 ? '...' : ''}"</p>
+              </div>
+            \` : \`<p style="font-size: 13px; color: #6D638C; font-style: italic;">The pages were quiet during this time. Silence is part of the journey too.</p>\`}
+          </div>
+
+          ${gratitude.length > 0 ? \`
+          <div class="card" style="flex: 1;">
+            <div class="card-title">Gratitude Anchors</div>
+            <div class="list">
+              \${gratitude.slice(0, 5).map(g => \`<div class="list-item"><span class="bullet">♡</span><span>\${g}</span></div>\`).join('')}
+            </div>
+          </div>
+          \` : \`
+          <div class="card" style="flex: 1; justify-content: center; align-items: center; text-align: center; opacity: 0.7;">
+            <p style="font-family: 'DM Serif Display', serif; font-size: 16px; color: #6D638C; font-style: italic;">"Growth is not about being perfect.<br>It is about continuing."</p>
+          </div>
+          \`}
+
         </div>
       </div>
-      ` : ''}
 
-      <!-- Closing note -->
-      <div style="padding: 12px 16px; background: rgba(124,92,191,0.04); border-radius: 10px; border: 1px solid rgba(196,181,253,0.2); margin-top: 8px;">
-        <p style="font-family: 'DM Serif Display', serif; font-size: 12px; font-style: italic; color: #4A3D72; line-height: 1.6;">
-          Growth isn't linear, and it isn't always visible. But you are here. You are paying attention. That is the whole practice.
-        </p>
+      <div class="footer">
+        <div class="footer-text">Generated securely on your device.</div>
+        <div class="footer-brand">Kaizen</div>
       </div>
     </div>
-
   </div>
-
-  <!-- Footer -->
-  <div class="footer">
-    <span class="footer-brand">Kaizen</span>
-    <span class="footer-note">Gentle self-improvement, without shame.</span>
-  </div>
-
-</div>
 </body>
 </html>`
   }, [habits, completions, moods, sleepLogs, journalEntries])
+
 
   return {
     user, profile, loading, habits, completions, moods, sleepLogs, reflections, journalEntries,

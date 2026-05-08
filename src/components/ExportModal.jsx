@@ -4,13 +4,14 @@ import { X, Download } from 'lucide-react'
 import { exportJSON, exportMarkdown, exportPrintHTML } from '../hooks/useStore'
 
 const FORMATS = [
-  { id: 'json', label: 'JSON', icon: '{ }', desc: 'Full data export — import anywhere' },
-  { id: 'markdown', label: 'Markdown', icon: '📝', desc: 'Readable text — great for Notion, Obsidian' },
-  { id: 'pdf', label: 'PDF / Print', icon: '🖨', desc: 'Beautiful printable journal pages' },
+  { id: 'daily', type: 'pdf', label: 'Daily Reflection', icon: '✨', desc: 'A calm snapshot of a single day.' },
+  { id: 'weekly', type: 'pdf', label: 'Weekly Rhythm', icon: '🌊', desc: 'A cinematic summary of your week.' },
+  { id: 'monthly', type: 'pdf', label: 'Monthly Chapter', icon: '📖', desc: 'A deep reflection chapter of your life.' },
+  { id: 'json', type: 'data', label: 'Data Backup', icon: '{ }', desc: 'Raw JSON data export' },
 ]
 
 export default function ExportModal({ onClose, buildExportData, buildMarkdownExport, buildPrintHTML }) {
-  const [format, setFormat] = useState('markdown')
+  const [format, setFormat] = useState('monthly')
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
 
@@ -18,12 +19,11 @@ export default function ExportModal({ onClose, buildExportData, buildMarkdownExp
     setLoading(true)
     const dateStr = new Date().toISOString().slice(0, 10)
     try {
-      if (format === 'json') {
+      const selectedFormat = FORMATS.find(f => f.id === format)
+      if (selectedFormat.type === 'data') {
         exportJSON(buildExportData(), `kaizen-export-${dateStr}.json`)
-      } else if (format === 'markdown') {
-        exportMarkdown(buildMarkdownExport(), `kaizen-journal-${dateStr}.md`)
-      } else if (format === 'pdf') {
-        exportPrintHTML(buildPrintHTML())
+      } else if (selectedFormat.type === 'pdf') {
+        exportPrintHTML(buildPrintHTML(format))
       }
       setDone(true)
       setTimeout(() => setDone(false), 2500)
@@ -67,9 +67,10 @@ export default function ExportModal({ onClose, buildExportData, buildMarkdownExp
             ))}
           </div>
 
-          {format === 'pdf' && (
-            <div style={{ padding: '10px 14px', background: 'var(--color-amber)', border: '1px solid #FDE68A', borderRadius: 8, marginBottom: 16, fontSize: 12, color: '#92400E' }}>
-              💡 A print dialog will open. Choose "Save as PDF" in your browser's print dialog.
+          {FORMATS.find(f => f.id === format)?.type === 'pdf' && (
+            <div style={{ padding: '10px 14px', background: 'var(--color-lavender)', border: '1px solid var(--color-lavender-mid)', borderRadius: 8, marginBottom: 16, fontSize: 12, color: 'var(--color-purple-dark)', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <span style={{ fontSize: 14 }}>💡</span>
+              <p style={{ margin: 0, lineHeight: 1.5 }}>A print dialog will open. Choose <strong>"Save as PDF"</strong> in your browser. Ensure "Background graphics" is enabled for the best cinematic experience.</p>
             </div>
           )}
 
