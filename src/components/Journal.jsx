@@ -263,7 +263,7 @@ export default function Journal({ journalEntries, getJournalEntry, saveJournalEn
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 md:gap-8 items-start md:min-h-[600px]">
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 lg:gap-8 items-start md:min-h-[600px]">
         {/* Left panel */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {viewMode === 'calendar' ? (

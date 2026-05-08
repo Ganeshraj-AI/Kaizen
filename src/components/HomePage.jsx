@@ -225,7 +225,7 @@ export default function HomePage({
       </motion.section>
 
       {/* ── TWO COLUMN BODY ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-8 md:gap-10 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8 lg:gap-12 items-start">
 
         {/* LEFT: Rituals + Emotional Insight Card */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
