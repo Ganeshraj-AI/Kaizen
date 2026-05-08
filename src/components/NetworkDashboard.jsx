@@ -14,6 +14,7 @@ export default function NetworkDashboard() {
     acceptFriendRequest,
     rejectFriendRequest,
     removeFriend,
+    getFriendActivity,
     loading
   } = useSocial()
 

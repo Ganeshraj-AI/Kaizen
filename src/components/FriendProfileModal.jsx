@@ -8,16 +8,33 @@ export default function FriendProfileModal({ friend, onClose, getFriendActivity 
   const [data, setData] = useState({ habits: [], completions: {}, sharedReflections: [] })
 
   useEffect(() => {
+    let mounted = true
     async function load() {
-      const activity = await getFriendActivity(friend.id)
-      setData(activity)
-      setLoading(false)
+      if (!getFriendActivity || !friend?.id) {
+        if (mounted) setLoading(false)
+        return
+      }
+      try {
+        const activity = await getFriendActivity(friend.id)
+        if (mounted && activity) {
+          setData({
+            habits: activity.habits || [],
+            completions: activity.completions || {},
+            sharedReflections: activity.sharedReflections || []
+          })
+        }
+      } catch (err) {
+        console.error('Failed to load friend activity', err)
+      } finally {
+        if (mounted) setLoading(false)
+      }
     }
     load()
-  }, [friend.id, getFriendActivity])
+    return () => { mounted = false }
+  }, [friend?.id, getFriendActivity])
 
   const calculateRhythm = (habitId, completions) => {
-    // Check last 7 days
+    if (!completions) return 0
     let count = 0
     let today = new Date()
     for (let i = 0; i < 7; i++) {
@@ -73,17 +90,17 @@ export default function FriendProfileModal({ friend, onClose, getFriendActivity 
                 <h3 style={{ fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Activity size={14} /> Shared Journey
                 </h3>
-                {data.habits.length === 0 ? (
+                {(!data.habits || data.habits.length === 0) ? (
                   <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>No habits shared with the circle yet.</p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {data.habits.map(h => {
                       const rhythm = calculateRhythm(h.id, data.completions)
-                      const message = getActivityMessage('habit_rhythm', { rhythm })
+                      const message = typeof getActivityMessage === 'function' ? getActivityMessage('habit_rhythm', { rhythm }) : 'Growing quietly.'
                       return (
                         <div key={h.id} style={{ display: 'flex', alignItems: 'center', gap: 16, background: 'white', padding: 16, borderRadius: 16, border: '1px solid var(--color-border)' }}>
-                          <div style={{ width: 44, height: 44, borderRadius: 12, background: h.color + '20', border: `2px solid ${h.color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
-                            {h.emoji}
+                          <div style={{ width: 44, height: 44, borderRadius: 12, background: (h.color || '#ccc') + '20', border: `2px solid ${(h.color || '#ccc')}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+                            {h.emoji || '✨'}
                           </div>
                           <div>
                             <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)' }}>{h.name}</div>
@@ -101,7 +118,7 @@ export default function FriendProfileModal({ friend, onClose, getFriendActivity 
                 <h3 style={{ fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Quote size={14} /> Thoughts & Reflections
                 </h3>
-                {data.sharedReflections.length === 0 ? (
+                {(!data.sharedReflections || data.sharedReflections.length === 0) ? (
                   <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>No reflections shared recently.</p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
