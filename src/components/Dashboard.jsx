@@ -53,7 +53,12 @@ export default function Dashboard({ store }) {
         backdropFilter: 'blur(20px)',
         borderBottom: '1px solid rgba(234,230,244,0.6)',
       }}>
-        <div className="max-w-6xl mx-auto flex items-center h-14 px-4 md:px-8">
+        <div style={{
+          maxWidth: 1280, margin: '0 auto',
+          display: 'flex', alignItems: 'center',
+          height: 56, gap: 0,
+          padding: '0 32px',
+        }}>
           {/* Wordmark — no icon, just the name */}
           <div style={{ flexShrink: 0, marginRight: 32 }}>
             <span
@@ -70,7 +75,7 @@ export default function Dashboard({ store }) {
           </div>
 
           {/* Desktop Nav */}
-          <nav className="hidden md:flex flex-1 gap-1">
+          <nav className="desktop-only" style={{ display: 'flex', gap: 1, flex: 1 }}>
             {NAV_ITEMS.map(item => {
               const Icon = item.icon
               return (
@@ -168,15 +173,49 @@ export default function Dashboard({ store }) {
               <LogOut size={13} />
             </button>
 
-            {/* Mobile hamburger removed, using bottom nav */}
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => setMobileMenuOpen(v => !v)}
+              style={{ display: 'none', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: 4 }}
+              className="mobile-menu-btn"
+            >
+              {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+            </button>
           </div>
         </div>
       </header>
 
-
+      {/* Mobile nav drawer */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            style={{
+              position: 'fixed', top: 56, left: 0, right: 0,
+              background: 'rgba(250,249,246,0.97)', backdropFilter: 'blur(16px)',
+              zIndex: 9, borderBottom: '1px solid var(--color-border)',
+              padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: 3,
+            }}
+          >
+            {NAV_ITEMS.map(item => {
+              const Icon = item.icon
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false) }}
+                  className={`nav-link ${activeTab === item.id ? 'active' : ''}`}
+                  style={{ justifyContent: 'flex-start' }}
+                >
+                  <Icon size={13} />{item.label}
+                </button>
+              )
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ─── Main Content ─────────────────────────────────────────────────── */}
-      <main className="max-w-6xl mx-auto px-4 md:px-8 pt-6 pb-24 md:pb-16">
+      <main style={{ maxWidth: 1280, margin: '0 auto', padding: '32px 32px 60px' }}>
 
         {/* Page title — subtle, not giant */}
         {activeTab !== 'home' && (
@@ -264,29 +303,12 @@ export default function Dashboard({ store }) {
         )}
       </AnimatePresence>
 
-      {/* Mobile Bottom Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-[var(--color-border)] z-50 px-2 py-2 flex justify-around items-center pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_24px_rgba(100,80,180,0.05)]">
-        {NAV_ITEMS.map(item => {
-          const Icon = item.icon
-          const isActive = activeTab === item.id
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl transition-colors ${isActive ? 'text-[var(--color-purple)]' : 'text-[var(--color-text-muted)]'}`}
-            >
-              <div className={`flex items-center justify-center w-8 h-8 rounded-full mb-0.5 ${isActive ? 'bg-[var(--color-lavender)] text-[var(--color-purple)]' : 'bg-transparent'}`}>
-                <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
-              </div>
-              <span className={`text-[10px] font-medium ${isActive ? 'text-[var(--color-purple)]' : ''}`}>{item.label}</span>
-            </button>
-          )
-        })}
-      </nav>
-
       <style>{`
-        @media (max-width: 768px) {
+        @media (max-width: 720px) {
           .desktop-only { display: none !important; }
+          .mobile-menu-btn { display: flex !important; }
+          main { padding: 20px 16px 48px; }
+          header > div { padding: 0 16px; }
         }
       `}</style>
     </div>

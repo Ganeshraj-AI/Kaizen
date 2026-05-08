@@ -528,264 +528,337 @@ export function useStore() {
     return lines.join('\n')
   }, [habits, journalEntries, moods])
 
-  const buildPrintHTML = useCallback((mode = 'monthly') => {
+  const buildPrintHTML = useCallback((type = 'pdf_monthly') => {
     const now = new Date()
+    const monthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     const dateStr = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-    const todayIso = now.toISOString().slice(0, 10)
 
-    let title, subtitle, timeframe
-    if (mode === 'daily') {
-      title = 'Daily Reflection'
-      subtitle = 'A calm snapshot of today.'
-      timeframe = 1
-    } else if (mode === 'weekly') {
-      title = 'Weekly Rhythm'
-      subtitle = 'A cinematic summary of your week.'
-      timeframe = 7
-    } else {
-      title = 'Monthly Chapter'
-      subtitle = 'A reflection chapter of your life.'
-      timeframe = 30
-    }
-
-    const pastDays = Array.from({ length: timeframe }, (_, i) => {
+    const todayISOStr = todayISO()
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(now); d.setDate(d.getDate() - i)
       return d.toISOString().slice(0, 10)
-    })
+    }).reverse()
 
-    const activeDaysCount = pastDays.filter(d => habits.some(h => completions[`${h.id}_${d}`])).length
-    const consistencyPct = Math.round((activeDaysCount / timeframe) * 100) || 0
+    const last30Days = Array.from({ length: 30 }, (_, i) => {
+      const d = new Date(now); d.setDate(d.getDate() - i)
+      return d.toISOString().slice(0, 10)
+    }).reverse()
 
-    let rhythmMessage = ""
-    if (timeframe === 1) {
-      if (activeDaysCount > 0) rhythmMessage = "Momentum formed softly today. You showed up."
-      else rhythmMessage = "A quieter day, but still moving. Rest is part of the rhythm."
+    const moodLabels = { 5: 'amazing', 4: 'good', 3: 'okay', 2: 'difficult', 1: 'hard' }
+
+    let title, subtitle, narrative, contentHTML = ''
+
+    if (type === 'pdf_daily') {
+      title = "Daily Reflection"
+      subtitle = dateStr
+      
+      const todayJournal = journalEntries.find(e => e.date === todayISOStr)
+      const todayMood = moods.find(m => m.date === todayISOStr)
+      const todayHabits = habits.filter(h => completions[`${h.id}_${todayISOStr}`])
+      
+      const moodText = todayMood ? moodLabels[todayMood.mood] : 'quiet'
+      narrative = todayHabits.length > 0 ? `Momentum formed softly today. You returned to your rhythm, completing ${todayHabits.length} ${todayHabits.length === 1 ? 'ritual' : 'rituals'}.` : "A quieter day, but still moving. Rest and pausing are part of any sustainable rhythm."
+
+      contentHTML = `
+        <div class="card">
+          <div class="section-label">Emotional Landscape</div>
+          <p class="narrative-text">You felt <strong>${moodText}</strong> today. ${todayMood?.note ? `"${todayMood.note}"` : "Every feeling has its place."}</p>
+        </div>
+        
+        <div class="card">
+          <div class="section-label">Today's Rhythm</div>
+          ${todayHabits.length > 0 ? `
+            <div class="rhythm-tags">
+              ${todayHabits.map(h => `<span class="tag">${h.name}</span>`).join('')}
+            </div>
+            <p class="sub-text">Consistency quietly deepened.</p>
+          ` : `<p class="narrative-text">No rituals completed today. The rhythm can continue tomorrow.</p>`}
+        </div>
+        
+        ${todayJournal ? `
+        <div class="card" style="grid-column: 1 / -1;">
+          <div class="section-label">Reflection</div>
+          <div class="quote-block">
+            <p class="quote-text">"${todayJournal.reflection || "No reflection written today."}"</p>
+          </div>
+          ${todayJournal.gratitude?.length ? `
+            <div style="margin-top: 16px;">
+              <div class="section-label">Gratitude</div>
+              ${todayJournal.gratitude.map(g => `<p class="item-text">• ${g}</p>`).join('')}
+            </div>
+          ` : ''}
+        </div>
+        ` : ''}
+      `
+    } else if (type === 'pdf_weekly') {
+      title = "Weekly Rhythm"
+      subtitle = `Week of ${dateStr}`
+      
+      const activeDays = last7Days.filter(d => habits.some(h => completions[`${h.id}_${d}`])).length
+      
+      narrative = activeDays >= 4 ? "A steady week. Your rhythm became steadier and you kept returning." : "A softer rhythm formed this week. A calmer momentum still matters."
+
+      const moodAverages = last7Days.map(d => moods.find(m => m.date === d)?.mood).filter(Boolean)
+      const avgMood = moodAverages.length ? (moodAverages.reduce((a,b)=>a+b,0)/moodAverages.length).toFixed(1) : null
+      
+      contentHTML = `
+        <div class="card">
+          <div class="section-label">The Week's Flow</div>
+          <p class="narrative-text">You returned <strong>${activeDays} times</strong> this week. Consistency isn't about perfection, it's about returning.</p>
+        </div>
+        
+        ${avgMood ? `
+        <div class="card">
+          <div class="section-label">Emotional Tone</div>
+          <p class="narrative-text">Your emotional tone averaged around <strong>${moodLabels[Math.round(avgMood)] || 'okay'}</strong>. You stayed present through it.</p>
+        </div>` : ''}
+        
+        <div class="card" style="grid-column: 1 / -1;">
+          <div class="section-label">Rhythm Timeline</div>
+          <div style="display: flex; gap: 8px; margin-top: 12px; justify-content: space-between; padding: 0 16px;">
+            ${last7Days.map(d => {
+              const count = habits.filter(h => completions[`${h.id}_${d}`]).length
+              const dayName = new Date(d).toLocaleDateString('en-US', { weekday: 'short' })
+              const intensity = Math.min(count / Math.max(habits.length, 1), 1)
+              return `
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                  <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--accent); opacity: ${intensity > 0 ? 0.3 + (intensity * 0.7) : 0.05}; box-shadow: 0 4px 12px rgba(130, 110, 156, ${intensity * 0.3});"></div>
+                  <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.1em;">${dayName}</span>
+                </div>
+              `
+            }).join('')}
+          </div>
+        </div>
+      `
     } else {
-      if (consistencyPct >= 80) rhythmMessage = "A remarkable rhythm. You kept returning, and it shows."
-      else if (consistencyPct >= 50) rhythmMessage = "A steady momentum. Consistency quietly deepened."
-      else rhythmMessage = "A softer rhythm formed. You are still becoming."
+      // Monthly Chapter
+      const monthNum = new Date().getMonth() + 1
+      title = `Chapter ${monthNum.toString().padStart(2, '0')} — Quiet Becoming`
+      subtitle = monthName
+      
+      const activeLast30 = last30Days.filter(d => habits.some(h => completions[`${h.id}_${d}`])).length
+      narrative = activeLast30 >= 15 ? "Consistency quietly deepened this month. You built a space of emotional continuity." : "A month of quiet recovery. You returned slowly, and that is enough."
+
+      const topHabits = habits.map(h => ({
+        ...h,
+        count: last30Days.filter(d => completions[`${h.id}_${d}`]).length
+      })).sort((a,b) => b.count - a.count).slice(0, 3)
+
+      const highlights = journalEntries.filter(e => last30Days.includes(e.date) && e.reflection?.length > 20).slice(0, 2)
+
+      contentHTML = `
+        <div class="card">
+          <div class="section-label">Monthly Rhythm</div>
+          <p class="narrative-text">You returned to your practices on <strong>${activeLast30} days</strong> this month. Every return is a moment of self-respect.</p>
+        </div>
+        
+        <div class="card">
+          <div class="section-label">Strongest Rhythms</div>
+          <div class="rhythm-tags">
+            ${topHabits.filter(h => h.count > 0).map(h => `<span class="tag">${h.name} (${h.count}x)</span>`).join('')}
+          </div>
+        </div>
+        
+        ${highlights.length > 0 ? `
+        <div class="card" style="grid-column: 1 / -1;">
+          <div class="section-label">Moments that Mattered</div>
+          <div style="display: grid; gap: 20px; grid-template-columns: 1fr 1fr;">
+            ${highlights.map(h => `
+              <div class="quote-block">
+                <p class="quote-text">"${h.reflection.slice(0, 150)}${h.reflection.length > 150 ? '...' : ''}"</p>
+                <div class="quote-date">— ${new Date(h.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        ` : ''}
+      `
     }
-
-    const topHabit = habits.reduce((best, h) => {
-      const done = pastDays.filter(d => completions[`${h.id}_${d}`]).length
-      return done > (best?.done || 0) ? { ...h, done } : best
-    }, null)
-
-    const relevantMoods = moods.filter(m => pastDays.includes(m.date))
-    const avgMood = relevantMoods.length ? (relevantMoods.reduce((s, m) => s + m.mood, 0) / relevantMoods.length).toFixed(1) : null
-    
-    let emotionalMessage = "Emotions are the weather of the mind."
-    if (avgMood) {
-      const score = parseFloat(avgMood)
-      if (score >= 4) emotionalMessage = "Your emotional landscape was predominantly bright. You carried yourself well."
-      else if (score >= 3) emotionalMessage = "Your mood was gently balanced. Life isn't always dramatic, and 'okay' is deeply meaningful."
-      else emotionalMessage = "A heavier emotional period. Be gentle with yourself — recognizing difficulty is courage."
-    }
-
-    const relevantJournals = journalEntries.filter(e => pastDays.includes(e.date))
-    const bestJournal = relevantJournals.find(e => e.reflection?.length > 40) || relevantJournals[0]
-    const wins = relevantJournals.flatMap(e => e.wins || [])
-    const gratitude = relevantJournals.flatMap(e => e.gratitude || [])
 
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Kaizen — ${title}</title>
+  <title>${title}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --bg-color: #F8F7F4;
+      --card-bg: rgba(255, 255, 255, 0.7);
+      --text-primary: #2C2834;
+      --text-secondary: #6B637B;
+      --accent: #826E9C;
+      --accent-light: rgba(130, 110, 156, 0.08);
+      --border: rgba(130, 110, 156, 0.15);
+    }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     @page { size: A4 portrait; margin: 0; }
 
     html, body {
-      width: 210mm; height: 297mm; overflow: hidden;
-      background: linear-gradient(145deg, #FDFCFB 0%, #F4F1FA 100%);
-      color: #1A1035;
-      font-family: 'Inter', sans-serif;
+      width: 210mm; min-height: 297mm;
+      background: var(--bg-color);
+      color: var(--text-primary);
+      font-family: 'DM Sans', sans-serif;
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
 
+    body::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 60vh;
+      background: linear-gradient(180deg, rgba(230,225,238,0.5) 0%, rgba(248,247,244,0) 100%);
+      z-index: -1;
+    }
+
     .page {
-      width: 210mm; height: 297mm;
-      padding: 24mm;
+      width: 210mm; min-height: 297mm;
+      padding: 32mm 24mm 24mm;
       display: flex; flex-direction: column;
       position: relative;
     }
 
-    /* Ambient background blobs for emotional depth */
-    .bg-glow-1 { position: absolute; top: -50mm; right: -50mm; width: 150mm; height: 150mm; background: radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 70%); border-radius: 50%; z-index: 0; }
-    .bg-glow-2 { position: absolute; bottom: -20mm; left: -20mm; width: 200mm; height: 200mm; background: radial-gradient(circle, rgba(196,181,253,0.12) 0%, transparent 70%); border-radius: 50%; z-index: 0; }
-
-    .content-wrapper { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; }
-
-    /* Header */
     .header {
-      display: flex; justify-content: space-between; align-items: flex-start;
-      margin-bottom: 28px;
+      margin-bottom: 32px;
+      text-align: center;
     }
-    .header-left { flex: 1; }
-    .brand { font-family: 'DM Serif Display', serif; font-size: 20px; color: #7C3AED; margin-bottom: 24px; opacity: 0.8; }
-    .title { font-family: 'DM Serif Display', serif; font-size: 46px; line-height: 1.1; color: #1A1035; margin-bottom: 6px; letter-spacing: -0.02em; }
-    .subtitle { font-size: 14px; color: #6D638C; font-weight: 400; letter-spacing: 0.02em; font-style: italic; }
-    
-    .header-right { text-align: right; }
-    .date-badge { display: inline-block; padding: 6px 14px; background: rgba(255,255,255,0.6); border: 1px solid rgba(139,92,246,0.15); border-radius: 20px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #5B4A82; font-weight: 600; box-shadow: 0 4px 20px rgba(0,0,0,0.02); }
-
-    /* Narrative Section */
-    .narrative-card {
-      background: rgba(255,255,255,0.7);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255,255,255,0.8);
-      border-radius: 16px;
-      padding: 24px 32px;
-      margin-bottom: 28px;
-      box-shadow: 0 10px 40px rgba(139,92,246,0.04), inset 0 1px 0 rgba(255,255,255,1);
-    }
-    .narrative-text {
+    .title {
       font-family: 'DM Serif Display', serif;
-      font-size: 20px; color: #2D234A; line-height: 1.6; font-style: italic;
+      font-size: 38px;
+      color: var(--text-primary);
+      line-height: 1.1;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+    .subtitle {
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: 12px;
     }
 
-    /* Grid Layout */
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; flex: 1; }
+    .narrative-lead {
+      font-family: 'DM Serif Display', serif;
+      font-size: 18px;
+      color: var(--text-primary);
+      line-height: 1.6;
+      font-style: italic;
+      text-align: center;
+      max-width: 80%;
+      margin: 0 auto 48px;
+      color: #4A4258;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      flex: 1;
+    }
+    ${type === 'pdf_daily' ? '.content-grid { display: flex; flex-direction: column; max-width: 85%; margin: 0 auto; width: 100%; }' : ''}
 
     .card {
-      background: rgba(255,255,255,0.5);
-      border: 1px solid rgba(139,92,246,0.1);
+      background: var(--card-bg);
+      border: 1px solid var(--border);
       border-radius: 16px;
-      padding: 24px;
-      display: flex; flex-direction: column; gap: 16px;
+      padding: 28px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.02);
+      backdrop-filter: blur(10px);
+    }
+    .section-label {
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .narrative-text {
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text-primary);
+    }
+    .sub-text {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 10px;
+      font-style: italic;
     }
 
-    .card-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: #7C3AED; font-weight: 600; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-    .card-title::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(139,92,246,0.2), transparent); }
-
-    .stat-val { font-family: 'DM Serif Display', serif; font-size: 42px; color: #1A1035; line-height: 1; margin-bottom: 4px; }
-    .stat-label { font-size: 12px; color: #6D638C; line-height: 1.4; }
-
-    .quote-box {
-      position: relative;
-      padding: 16px 20px;
-      background: linear-gradient(135deg, rgba(139,92,246,0.05), transparent);
-      border-left: 2px solid #8B5CF6;
-      border-radius: 0 12px 12px 0;
-      margin-top: 8px;
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 14px;
+      background: var(--accent-light);
+      border-radius: 99px;
+      font-size: 12px;
+      color: var(--text-primary);
+      margin: 4px;
+      border: 1px solid var(--border);
+      font-weight: 500;
     }
-    .quote-text { font-family: 'DM Serif Display', serif; font-size: 16px; color: #2D234A; line-height: 1.6; font-style: italic; }
+    .rhythm-tags {
+      margin: -4px;
+    }
 
-    /* Lists */
-    .list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
-    .list-item { font-size: 13px; color: #3A2F5A; display: flex; align-items: flex-start; gap: 12px; line-height: 1.5; }
-    .bullet { color: #8B5CF6; font-size: 14px; margin-top: -2px; }
+    .quote-block {
+      padding-left: 20px;
+      border-left: 2px solid var(--accent);
+    }
+    .quote-text {
+      font-family: 'DM Serif Display', serif;
+      font-size: 17px;
+      font-style: italic;
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+    .quote-date {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 10px;
+      font-weight: 500;
+    }
+    
+    .item-text {
+      font-size: 14px;
+      color: var(--text-primary);
+      padding: 6px 0;
+      line-height: 1.5;
+    }
 
-    /* Footer */
     .footer {
-      margin-top: auto; padding-top: 24px;
-      border-top: 1px solid rgba(139,92,246,0.1);
-      display: flex; justify-content: space-between; align-items: center;
+      margin-top: auto;
+      padding-top: 48px;
+      text-align: center;
+      font-family: 'DM Serif Display', serif;
+      font-size: 15px;
+      color: var(--accent);
+      font-style: italic;
     }
-    .footer-text { font-size: 10px; color: #9B93B8; letter-spacing: 0.05em; }
-    .footer-brand { font-family: 'DM Serif Display', serif; font-size: 14px; color: #7C3AED; opacity: 0.6; }
-
   </style>
 </head>
 <body>
-  <div class="page">
-    <div class="bg-glow-1"></div>
-    <div class="bg-glow-2"></div>
-    
-    <div class="content-wrapper">
-      <div class="header">
-        <div class="header-left">
-          <div class="brand">Kaizen</div>
-          <h1 class="title">${title}</h1>
-          <p class="subtitle">${subtitle}</p>
-        </div>
-        <div class="header-right">
-          <div class="date-badge">${dateStr}</div>
-        </div>
-      </div>
-
-      <div class="narrative-card">
-        <p class="narrative-text">${rhythmMessage}</p>
-      </div>
-
-      <div class="grid">
-        <!-- Left Column -->
-        <div style="display: flex; flex-direction: column; gap: 24px;">
-          
-          <div class="card">
-            <div class="card-title">Continuity</div>
-            <div style="display: flex; gap: 24px; align-items: center;">
-              <div>
-                <div class="stat-val">${consistencyPct}%</div>
-                <div class="stat-label">rhythm maintained</div>
-              </div>
-              <div style="width: 1px; height: 40px; background: rgba(139,92,246,0.1);"></div>
-              <div>
-                <div class="stat-val">${activeDaysCount}</div>
-                <div class="stat-label">days present</div>
-              </div>
-            </div>
-            ${topHabit ? `<p style="font-size: 13px; color: #6D638C; margin-top: 8px; line-height: 1.5;">Your strongest anchor was <strong>${topHabit.name}</strong>. It grounds you.</p>` : ''}
-          </div>
-
-          <div class="card">
-            <div class="card-title">Emotional Landscape</div>
-            ${avgMood ? `<div class="stat-val">${avgMood}</div>` : ''}
-            <p style="font-size: 13px; color: #6D638C; line-height: 1.5;">${emotionalMessage}</p>
-          </div>
-
-          ${wins.length > 0 ? `
-          <div class="card" style="flex: 1;">
-            <div class="card-title">Moments of Light</div>
-            <div class="list">
-              ${wins.slice(0, 4).map(w => `<div class="list-item"><span class="bullet">✧</span><span>${w}</span></div>`).join('')}
-            </div>
-          </div>
-          ` : ''}
-
-        </div>
-
-        <!-- Right Column -->
-        <div style="display: flex; flex-direction: column; gap: 24px;">
-          
-          <div class="card">
-            <div class="card-title">From Your Journal</div>
-            ${bestJournal?.reflection ? `
-              <div class="quote-box">
-                <p class="quote-text">"${bestJournal.reflection.slice(0, 320)}${bestJournal.reflection.length > 320 ? '...' : ''}"</p>
-              </div>
-            ` : `<p style="font-size: 13px; color: #6D638C; font-style: italic;">The pages were quiet during this time. Silence is part of the journey too.</p>`}
-          </div>
-
-          ${gratitude.length > 0 ? `
-          <div class="card" style="flex: 1;">
-            <div class="card-title">Gratitude Anchors</div>
-            <div class="list">
-              ${gratitude.slice(0, 5).map(g => `<div class="list-item"><span class="bullet">♡</span><span>${g}</span></div>`).join('')}
-            </div>
-          </div>
-          ` : `
-          <div class="card" style="flex: 1; justify-content: center; align-items: center; text-align: center; opacity: 0.7;">
-            <p style="font-family: 'DM Serif Display', serif; font-size: 16px; color: #6D638C; font-style: italic;">"Growth is not about being perfect.<br>It is about continuing."</p>
-          </div>
-          `}
-
-        </div>
-      </div>
-
-      <div class="footer">
-        <div class="footer-text">Generated securely on your device.</div>
-        <div class="footer-brand">Kaizen</div>
-      </div>
-    </div>
+<div class="page">
+  <div class="header">
+    <div class="subtitle">${subtitle}</div>
+    <div class="title">${title}</div>
   </div>
+  
+  <p class="narrative-lead">${narrative}</p>
+
+  <div class="content-grid">
+    ${contentHTML}
+  </div>
+
+  <div class="footer">
+    Kaizen — Quietly becoming.
+  </div>
+</div>
 </body>
 </html>`
   }, [habits, completions, moods, sleepLogs, journalEntries])
-
 
   return {
     user, profile, loading, habits, completions, moods, sleepLogs, reflections, journalEntries,

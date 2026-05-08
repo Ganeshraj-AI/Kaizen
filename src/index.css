@@ -24,15 +24,15 @@
   --font-display: "DM Serif Display", Georgia, serif;
   --font-body: "DM Sans", system-ui, sans-serif;
 
-  --radius-card: 16px;
-  --radius-cell: 8px;
+  --radius-card: 18px;
+  --radius-cell: 7px;
 
-  /* Depth system - Grounded, soft editorial shadows */
-  --shadow-sm:   0 1px 2px rgba(100,80,180,0.03);
-  --shadow-md:   0 2px 8px rgba(100,80,180,0.04), 0 1px 2px rgba(100,80,180,0.02);
-  --shadow-card: 0 8px 30px rgba(100,80,180,0.04), 0 2px 8px rgba(100,80,180,0.02);
-  --shadow-elevated: 0 16px 40px rgba(100,80,180,0.06), 0 4px 12px rgba(100,80,180,0.03);
-  --shadow-float: 0 24px 60px rgba(100,80,180,0.08), 0 8px 24px rgba(100,80,180,0.04);
+  /* Depth system */
+  --shadow-sm:   0 1px 2px rgba(100,80,180,0.04);
+  --shadow-md:   0 2px 8px rgba(100,80,180,0.06), 0 1px 2px rgba(100,80,180,0.04);
+  --shadow-card: 0 4px 24px rgba(100,80,180,0.07), 0 1px 3px rgba(100,80,180,0.04);
+  --shadow-elevated: 0 8px 32px rgba(100,80,180,0.10), 0 2px 8px rgba(100,80,180,0.06);
+  --shadow-float: 0 16px 48px rgba(100,80,180,0.12), 0 4px 12px rgba(100,80,180,0.08);
   --shadow-glow: 0 0 0 3px rgba(124,92,191,0.16);
   --shadow-cell-done: 0 2px 10px rgba(124,92,191,0.30);
 
