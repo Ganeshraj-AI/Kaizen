@@ -728,23 +728,23 @@ export function useStore() {
                 <div class="stat-label">days present</div>
               </div>
             </div>
-            ${topHabit ? \`<p style="font-size: 13px; color: #6D638C; margin-top: 8px; line-height: 1.5;">Your strongest anchor was <strong>\${topHabit.name}</strong>. It grounds you.</p>\` : ''}
+            ${topHabit ? `<p style="font-size: 13px; color: #6D638C; margin-top: 8px; line-height: 1.5;">Your strongest anchor was <strong>${topHabit.name}</strong>. It grounds you.</p>` : ''}
           </div>
 
           <div class="card">
             <div class="card-title">Emotional Landscape</div>
-            ${avgMood ? \`<div class="stat-val">\${avgMood}</div>\` : ''}
-            <p style="font-size: 13px; color: #6D638C; line-height: 1.5;">\${emotionalMessage}</p>
+            ${avgMood ? `<div class="stat-val">${avgMood}</div>` : ''}
+            <p style="font-size: 13px; color: #6D638C; line-height: 1.5;">${emotionalMessage}</p>
           </div>
 
-          ${wins.length > 0 ? \`
+          ${wins.length > 0 ? `
           <div class="card" style="flex: 1;">
             <div class="card-title">Moments of Light</div>
             <div class="list">
-              \${wins.slice(0, 4).map(w => \`<div class="list-item"><span class="bullet">✧</span><span>\${w}</span></div>\`).join('')}
+              ${wins.slice(0, 4).map(w => `<div class="list-item"><span class="bullet">✧</span><span>${w}</span></div>`).join('')}
             </div>
           </div>
-          \` : ''}
+          ` : ''}
 
         </div>
 
@@ -753,25 +753,25 @@ export function useStore() {
           
           <div class="card">
             <div class="card-title">From Your Journal</div>
-            ${bestJournal?.reflection ? \`
+            ${bestJournal?.reflection ? `
               <div class="quote-box">
-                <p class="quote-text">"\${bestJournal.reflection.slice(0, 320)}\${bestJournal.reflection.length > 320 ? '...' : ''}"</p>
+                <p class="quote-text">"${bestJournal.reflection.slice(0, 320)}${bestJournal.reflection.length > 320 ? '...' : ''}"</p>
               </div>
-            \` : \`<p style="font-size: 13px; color: #6D638C; font-style: italic;">The pages were quiet during this time. Silence is part of the journey too.</p>\`}
+            ` : `<p style="font-size: 13px; color: #6D638C; font-style: italic;">The pages were quiet during this time. Silence is part of the journey too.</p>`}
           </div>
 
-          ${gratitude.length > 0 ? \`
+          ${gratitude.length > 0 ? `
           <div class="card" style="flex: 1;">
             <div class="card-title">Gratitude Anchors</div>
             <div class="list">
-              \${gratitude.slice(0, 5).map(g => \`<div class="list-item"><span class="bullet">♡</span><span>\${g}</span></div>\`).join('')}
+              ${gratitude.slice(0, 5).map(g => `<div class="list-item"><span class="bullet">♡</span><span>${g}</span></div>`).join('')}
             </div>
           </div>
-          \` : \`
+          ` : `
           <div class="card" style="flex: 1; justify-content: center; align-items: center; text-align: center; opacity: 0.7;">
             <p style="font-family: 'DM Serif Display', serif; font-size: 16px; color: #6D638C; font-style: italic;">"Growth is not about being perfect.<br>It is about continuing."</p>
           </div>
-          \`}
+          `}
 
         </div>
       </div>
