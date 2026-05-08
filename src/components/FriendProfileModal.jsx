@@ -31,28 +31,66 @@ class ProfileErrorBoundary extends React.Component {
   }
 }
 
+const calculateRhythm = (habitId, completions) => {
+  if (!completions) return 0
+  let count = 0
+  let today = new Date()
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today)
+    d.setDate(d.getDate() - i)
+    const dateStr = d.toISOString().split('T')[0]
+    if (completions[`${habitId}_${dateStr}`]) count++
+  }
+  return count
+}
+
 export default function FriendProfileModal({ friend, onClose, getFriendActivity }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [data, setData] = useState({ habits: [], completions: {}, sharedReflections: [] })
+  
+  const getFriendActivityRef = React.useRef(getFriendActivity)
+  const fetchInProgress = React.useRef(false)
+  const lastFetchedId = React.useRef(null)
+
+  useEffect(() => {
+    getFriendActivityRef.current = getFriendActivity
+  }, [getFriendActivity])
 
   useEffect(() => {
     let mounted = true
+    let isCancelled = false
+
     async function load() {
-      if (!getFriendActivity || !friend?.id) {
+      const currentId = friend?.id
+      const fetchFn = getFriendActivityRef.current
+
+      if (!fetchFn || !currentId) {
         if (mounted) setLoading(false)
         return
       }
+
+      // Prevent duplicate inflight requests or redundant fetches for the same friend
+      if (fetchInProgress.current && lastFetchedId.current === currentId) {
+        return
+      }
+
+      fetchInProgress.current = true
+      lastFetchedId.current = currentId
+      
+      if (mounted && !loading) setLoading(true)
+      if (mounted && error) setError(null)
+
       try {
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Unable to load shared journey right now.')), 5000)
         )
         const activity = await Promise.race([
-          getFriendActivity(friend.id),
+          fetchFn(currentId),
           timeoutPromise
         ])
         
-        if (mounted && activity) {
+        if (mounted && !isCancelled && activity) {
           setData({
             habits: Array.isArray(activity.habits) ? activity.habits : [],
             completions: activity.completions || {},
@@ -60,28 +98,27 @@ export default function FriendProfileModal({ friend, onClose, getFriendActivity 
           })
         }
       } catch (err) {
-        console.error('Failed to load friend activity', err)
-        if (mounted) setError(err.message || 'Unable to load shared journey right now.')
+        // Only log once, not on every render
+        if (!isCancelled) {
+          console.error('[FriendProfileModal] Failed to load friend activity:', err)
+          if (mounted) setError(err.message || 'Unable to load shared journey right now.')
+        }
       } finally {
-        if (mounted) setLoading(false)
+        if (!isCancelled) {
+          fetchInProgress.current = false
+          if (mounted) setLoading(false)
+        }
       }
     }
+    
     load()
-    return () => { mounted = false }
-  }, [friend?.id, getFriendActivity])
-
-  const calculateRhythm = (habitId, completions) => {
-    if (!completions) return 0
-    let count = 0
-    let today = new Date()
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(today)
-      d.setDate(d.getDate() - i)
-      const dateStr = d.toISOString().split('T')[0]
-      if (completions[`${habitId}_${dateStr}`]) count++
+    
+    return () => { 
+      mounted = false 
+      isCancelled = true
+      fetchInProgress.current = false
     }
-    return count
-  }
+  }, [friend?.id]) // Intentionally excluded getFriendActivity to prevent loops
 
   return (
     <div className="modal-overlay">

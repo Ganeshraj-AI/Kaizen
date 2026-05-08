@@ -58,7 +58,7 @@ export function useSocial() {
   }, [loadNetwork])
 
   // Search users by kaizen_id or username
-  const searchUsers = async (query) => {
+  const searchUsers = useCallback(async (query) => {
     if (!query || query.length < 3) return []
     const q = query.toLowerCase()
     
@@ -72,18 +72,18 @@ export function useSocial() {
       
     if (error) console.error(error)
     return data || []
-  }
+  }, [user])
 
-  const sendFriendRequest = async (receiverId) => {
+  const sendFriendRequest = useCallback(async (receiverId) => {
     const { error } = await supabase
       .from('friend_requests')
       .insert([{ sender_id: user.id, receiver_id: receiverId, status: 'pending' }])
     
     if (!error) loadNetwork()
     return { error }
-  }
+  }, [user, loadNetwork])
 
-  const acceptFriendRequest = async (requestId) => {
+  const acceptFriendRequest = useCallback(async (requestId) => {
     const { error } = await supabase
       .from('friend_requests')
       .update({ status: 'accepted' })
@@ -92,9 +92,9 @@ export function useSocial() {
 
     if (!error) loadNetwork()
     return { error }
-  }
+  }, [user, loadNetwork])
 
-  const rejectFriendRequest = async (requestId) => {
+  const rejectFriendRequest = useCallback(async (requestId) => {
     const { error } = await supabase
       .from('friend_requests')
       .update({ status: 'rejected' })
@@ -103,9 +103,9 @@ export function useSocial() {
 
     if (!error) loadNetwork()
     return { error }
-  }
+  }, [user, loadNetwork])
 
-  const removeFriend = async (friendId) => {
+  const removeFriend = useCallback(async (friendId) => {
     // Delete friendship
     const { error: fError } = await supabase
       .from('friendships')
@@ -120,12 +120,10 @@ export function useSocial() {
 
     if (!fError) loadNetwork()
     return { error: fError }
-  }
+  }, [user, loadNetwork])
 
-  const getFriendActivity = async (friendId) => {
+  const getFriendActivity = useCallback(async (friendId) => {
     if (!friendId) return { habits: [], completions: {}, sharedReflections: [] }
-
-    console.log(`[FriendProfile] Loading start for friend ID: ${friendId}`)
 
     // Habits (only friends, circle, or public visibility)
     const { data: habitsData, error: hError } = await supabase
@@ -135,8 +133,9 @@ export function useSocial() {
       .in('visibility', ['friends', 'circle', 'public'])
       .order('created_at')
 
-    if (hError) console.error("[FriendProfile] Error loading habits:", hError)
-    console.log(`[FriendProfile] Visibility filtering results (habits):`, habitsData)
+    if (hError) {
+      console.error("[FriendProfile] Error loading habits:", hError)
+    }
 
     // Completions for those habits
     const habitIds = (habitsData || []).map(h => h.id)
@@ -148,10 +147,11 @@ export function useSocial() {
         .eq('user_id', friendId)
         .in('habit_id', habitIds)
       
-      if (cError) console.error("[FriendProfile] Error loading completions:", cError)
+      if (cError) {
+        console.error("[FriendProfile] Error loading completions:", cError)
+      }
       compData = data || []
     }
-    console.log(`[FriendProfile] Completions query result:`, compData)
 
     const compMap = {}
     compData.forEach(c => { compMap[`${c.habit_id}_${c.date}`] = true })
@@ -164,16 +164,16 @@ export function useSocial() {
       .order('created_at', { ascending: false })
       .limit(10)
 
-    if (rError) console.error("[FriendProfile] Error loading reflections:", rError)
-    console.log(`[FriendProfile] Reflections query result:`, reflectionsData)
-    console.log(`[FriendProfile] Loading end for friend ID: ${friendId}`)
+    if (rError) {
+      console.error("[FriendProfile] Error loading reflections:", rError)
+    }
 
     return {
       habits: habitsData || [],
       completions: compMap,
       sharedReflections: reflectionsData || []
     }
-  }
+  }, [])
 
   return {
     friends,
