@@ -53,7 +53,7 @@ export default function Dashboard({ store }) {
         backdropFilter: 'blur(20px)',
         borderBottom: '1px solid rgba(234,230,244,0.6)',
       }}>
-        <div className="max-w-[1200px] mx-auto flex items-center h-14 px-4 md:px-8">
+        <div className="max-w-[1024px] mx-auto flex items-center h-14 px-4 md:px-8">
           {/* Wordmark — no icon, just the name */}
           <div style={{ flexShrink: 0, marginRight: 32 }}>
             <span
@@ -176,7 +176,7 @@ export default function Dashboard({ store }) {
 
 
       {/* ─── Main Content ─────────────────────────────────────────────────── */}
-      <main className="max-w-[1200px] mx-auto px-4 md:px-8 pt-6 pb-24 md:pb-16">
+      <main className="max-w-[1024px] mx-auto px-4 md:px-8 pt-6 pb-24 md:pb-16">
 
         {/* Page title — subtle, not giant */}
         {activeTab !== 'home' && (

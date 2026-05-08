@@ -192,7 +192,7 @@ export default function HomePage({
           <p style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-text-muted)', marginBottom: 10, fontWeight: 500 }}>
             {dateStr}
           </p>
-          <h2 className="font-display" style={{ fontSize: 'clamp(28px, 3.5vw, 40px)', color: 'var(--color-text-primary)', lineHeight: 1.1, marginBottom: 10, letterSpacing: '-0.5px' }}>
+          <h2 className="font-display" style={{ fontSize: 'clamp(30px, 4vw, 46px)', color: 'var(--color-text-primary)', lineHeight: 1.1, marginBottom: 10, letterSpacing: '-0.8px' }}>
             {greeting},<br />{firstName}.
           </h2>
           <p style={{ fontSize: 15, color: 'var(--color-text-secondary)', fontStyle: 'italic', fontFamily: 'var(--font-display)', marginBottom: 20 }}>
@@ -225,7 +225,7 @@ export default function HomePage({
       </motion.section>
 
       {/* ── TWO COLUMN BODY ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_340px] lg:grid-cols-[1fr_360px] gap-8 lg:gap-12 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-8 md:gap-10 items-start">
 
         {/* LEFT: Rituals + Emotional Insight Card */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
