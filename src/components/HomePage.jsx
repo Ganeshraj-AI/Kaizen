@@ -225,7 +225,7 @@ export default function HomePage({
       </motion.section>
 
       {/* ── TWO COLUMN BODY ──────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 48, alignItems: 'start' }}>
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-8 md:gap-12 items-start">
 
         {/* LEFT: Rituals + Emotional Insight Card */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
@@ -417,11 +417,7 @@ export default function HomePage({
         </motion.div>
       </div>
 
-      <style>{`
-        @media (max-width: 860px) {
-          .home-two-col { grid-template-columns: 1fr !important; gap: 32px !important; }
-        }
-      `}</style>
+
     </div>
   )
 }

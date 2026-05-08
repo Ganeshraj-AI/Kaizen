@@ -74,7 +74,9 @@ export default function HabitGrid({ habits, completions, toggleCompletion, getSt
           <button className="btn-primary" onClick={onAddHabit} style={{ margin: '0 auto' }}><Plus size={13} /> Add your first ritual</button>
         </motion.div>
       ) : (
-        <div className="card" style={{ overflow: 'hidden' }}>
+        <>
+        {/* Desktop View */}
+        <div className="card hidden md:block" style={{ overflow: 'hidden' }}>
           <div className="tracker-wrapper">
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 680 }}>
               <thead>
@@ -192,6 +194,89 @@ export default function HabitGrid({ habits, completions, toggleCompletion, getSt
             </table>
           </div>
         </div>
+
+        {/* Mobile View */}
+        <div className="md:hidden flex flex-col gap-4">
+          <AnimatePresence>
+            {habits.map((habit, rowIdx) => {
+              const done = days.filter(({ iso }) => completions[`${habit.id}_${iso}`]).length
+              const possible = days.filter(({ iso }) => iso <= today).length
+              const pct = possible > 0 ? Math.round((done / possible) * 100) : 0
+              const { current: streak } = getStreakForHabit(habit.id)
+              const { label, color } = getRhythmLabel(pct)
+
+              return (
+                <motion.div
+                  key={habit.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="card p-4 flex flex-col"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div style={{ width: 40, height: 40, borderRadius: 12, background: habit.color + '18', border: `1.5px solid ${habit.color}28`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
+                        {habit.emoji}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-[15px] text-[var(--color-text-primary)] leading-tight">{habit.name}</h3>
+                        {streak > 0 && (
+                          <div className="text-[11px] font-medium text-[var(--color-text-muted)] mt-1">
+                            {streak >= 7 ? 'in your rhythm' : streak >= 3 ? `${streak} days in a row` : 'returning'}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <button className="text-[var(--color-text-muted)] p-2 hover:text-red-500 transition-colors" onClick={() => setConfirmDelete(habit.id)}>
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  
+                  {/* Rhythm Bar */}
+                  <div className="flex items-center justify-between mb-5 bg-[var(--color-paper)] p-3 rounded-xl border border-[var(--color-border-soft)]">
+                    <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color }}>{label}</span>
+                    <div className="flex-1 mx-4">
+                      <div className="progress-bar w-full">
+                        <div className="progress-fill" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                    <span className="text-xs font-semibold text-[var(--color-text-muted)]">{pct}%</span>
+                  </div>
+
+                  {/* Calendar Grid */}
+                  <div className="grid grid-cols-7 gap-1.5">
+                    {['S','M','T','W','T','F','S'].map((d, i) => (
+                      <div key={i} className="text-[10px] font-bold text-center text-[var(--color-text-muted)] mb-1 opacity-70">{d}</div>
+                    ))}
+                    {days[0] && Array.from({ length: days[0].dow }).map((_, i) => (
+                      <div key={`empty-${i}`} />
+                    ))}
+                    {days.map(({ day, iso }) => {
+                      const isCompleted = Boolean(completions[`${habit.id}_${iso}`])
+                      const isFuture = iso > today
+                      const isToday = iso === today
+                      return (
+                        <motion.button
+                          key={iso}
+                          whileTap={!isFuture ? { scale: 0.8 } : {}}
+                          onClick={() => !isFuture && toggleCompletion(habit.id, iso)}
+                          className={`aspect-square rounded-[8px] flex items-center justify-center text-[12px] font-medium transition-all ${isCompleted ? 'text-white' : isToday ? 'text-[var(--color-purple)] bg-[var(--color-lavender)] border border-[var(--color-purple-light)]' : isFuture ? 'bg-transparent text-[var(--color-text-muted)] opacity-30' : 'bg-[var(--color-paper)] text-[var(--color-text-secondary)] border border-[var(--color-border-soft)] hover:bg-[var(--color-border-soft)]'}`}
+                          style={{
+                            background: isCompleted ? habit.color : undefined,
+                            boxShadow: isCompleted ? '0 2px 6px ' + habit.color + '40' : undefined
+                          }}
+                        >
+                          {day}
+                        </motion.button>
+                      )
+                    })}
+                  </div>
+                </motion.div>
+              )
+            })}
+          </AnimatePresence>
+        </div>
+        </>
       )}
 
       {/* Delete confirm */}

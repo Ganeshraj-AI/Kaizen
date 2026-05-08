@@ -127,33 +127,33 @@ export default function FriendProfileModal({ friend, onClose, getFriendActivity 
         initial={{ opacity: 0, y: 10, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 10, scale: 0.98 }}
-        style={{ width: '100%', maxWidth: 500, background: 'var(--color-warm-white)', padding: 0, borderRadius: 20, overflow: 'hidden' }}
+        style={{ width: '100%', maxWidth: 500, background: 'var(--color-warm-white)', padding: 0, borderRadius: 20, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '85vh' }}
       >
         {/* Header */}
-        <div style={{ padding: '32px 32px 24px', background: 'white', borderBottom: '1px solid var(--color-border)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--color-lavender-mid)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-purple-dark)', fontSize: 24, fontWeight: 600 }}>
+        <div className="p-5 md:p-8 bg-white border-b border-[var(--color-border)] flex-shrink-0">
+          <div className="flex justify-between items-start">
+            <div className="flex gap-3 md:gap-4 items-center">
+              <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-[var(--color-lavender-mid)] flex items-center justify-center text-[var(--color-purple-dark)] text-xl md:text-2xl font-semibold flex-shrink-0">
                 {friend?.display_name ? friend.display_name.charAt(0).toUpperCase() : '?'}
               </div>
               <div>
-                <h2 style={{ fontSize: 22, fontFamily: 'var(--font-display)', color: 'var(--color-text-primary)' }}>{friend?.display_name || 'Friend'}</h2>
-                <div style={{ fontSize: 13, color: 'var(--color-text-muted)', display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
-                  <span>@{friend?.username || 'unknown'}</span>
-                  <span style={{ padding: '2px 8px', background: 'var(--color-lavender)', borderRadius: 99, color: 'var(--color-purple)', fontSize: 11, fontWeight: 500 }}>
+                <h2 className="text-lg md:text-[22px] font-display text-[var(--color-text-primary)] leading-tight">{friend?.display_name || 'Friend'}</h2>
+                <div className="text-[11px] md:text-[13px] text-[var(--color-text-muted)] flex gap-2 items-center mt-1">
+                  <span className="truncate max-w-[100px] md:max-w-none">@{friend?.username || 'unknown'}</span>
+                  <span className="px-2 py-0.5 bg-[var(--color-lavender)] rounded-full text-[var(--color-purple)] text-[10px] md:text-[11px] font-medium flex-shrink-0">
                     {friend?.kaizen_id || 'ID'}
                   </span>
                 </div>
               </div>
             </div>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}>
+            <button onClick={onClose} className="bg-transparent border-none cursor-pointer text-[var(--color-text-muted)] p-1 ml-2">
               <X size={20} />
             </button>
           </div>
         </div>
 
         {/* Content */}
-        <div style={{ padding: 32, maxHeight: '60vh', overflowY: 'auto', position: 'relative' }}>
+        <div className="p-5 md:p-8 overflow-y-auto relative flex-1">
           <ProfileErrorBoundary>
             {error ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: 32, textAlign: 'center', color: '#EF4444', background: '#FEF2F2', borderRadius: 16 }}>

@@ -263,7 +263,7 @@ export default function Journal({ journalEntries, getJournalEntry, saveJournalEn
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 12, minHeight: 600, alignItems: 'start' }}>
+      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-3 md:gap-4 items-start md:min-h-[600px]">
         {/* Left panel */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {viewMode === 'calendar' ? (
@@ -297,7 +297,7 @@ export default function Journal({ journalEntries, getJournalEntry, saveJournalEn
               </div>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 600, overflowY: 'auto' }}>
+            <div className="flex flex-col gap-2 overflow-y-auto max-h-[300px] md:max-h-[600px]">
               {/* Today shortcut if no entry */}
               {!journalEntries.find(e => e.date === today) && (
                 <button className="journal-card" onClick={() => setSelectedDate(today)} style={{ textAlign: 'left', width: '100%', fontFamily: 'var(--font-body)' }}>
@@ -338,7 +338,7 @@ export default function Journal({ journalEntries, getJournalEntry, saveJournalEn
         </div>
 
         {/* Right: Entry editor */}
-        <div className="card" style={{ padding: '18px 20px', minHeight: 540 }}>
+        <div className="card p-4 md:p-5 md:min-h-[540px]">
           {/* Context bar from life data */}
           {(dateHabitsDone > 0 || dateMood || dateSleep) && (
             <div style={{ display: 'flex', gap: 8, padding: '8px 10px', background: 'var(--color-lavender)', borderRadius: 8, marginBottom: 14, flexWrap: 'wrap' }}>

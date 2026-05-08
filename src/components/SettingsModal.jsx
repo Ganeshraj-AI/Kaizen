@@ -25,7 +25,8 @@ export default function SettingsModal({ onClose, profile, updateProfile }) {
         initial={{ opacity: 0, y: 10, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 10, scale: 0.98 }}
-        style={{ width: '100%', maxWidth: 400, background: 'white', padding: 24, borderRadius: 16 }}
+        style={{ maxWidth: 400, background: 'white', borderRadius: 16, maxHeight: '85vh', overflowY: 'auto' }}
+        className="modal-content p-5 md:p-6"
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 style={{ fontSize: 18, fontFamily: 'var(--font-display)', color: 'var(--color-text-primary)' }}>Profile Settings</h2>
