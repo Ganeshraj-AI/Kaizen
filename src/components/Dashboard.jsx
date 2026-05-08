@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { LogOut, Home, Grid3X3, Smile, Moon, Map, BookOpen, Download, Menu, X } from 'lucide-react'
+import { LogOut, Home, Grid3X3, Smile, Moon, Map, BookOpen, Download, Menu, X, Settings } from 'lucide-react'
 import HabitGrid from './HabitGrid'
 import AddHabitModal from './AddHabitModal'
 import MoodTracker from './MoodTracker'
@@ -10,6 +10,7 @@ import HomePage from './HomePage'
 import Journal from './Journal'
 import StatsBar from './StatsBar'
 import ExportModal from './ExportModal'
+import SettingsModal from './SettingsModal'
 
 const NAV_ITEMS = [
   { id: 'home', label: 'Home', icon: Home },
@@ -24,11 +25,12 @@ export default function Dashboard({ store }) {
   const [activeTab, setActiveTab] = useState('home')
   const [showAddHabit, setShowAddHabit] = useState(false)
   const [showExport, setShowExport] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const {
-    user, habits, completions, moods, sleepLogs, reflections, journalEntries,
-    signOut, addHabit, deleteHabit, toggleCompletion,
+    user, profile, habits, completions, moods, sleepLogs, reflections, journalEntries,
+    signOut, addHabit, deleteHabit, toggleCompletion, updateProfile,
     logMood, logSleep, saveReflection,
     saveJournalEntry, deleteJournalEntry, getJournalEntry, getInsights,
     getStreakForHabit, getOverallStreak, getWeeklyCompletionRate,
@@ -36,7 +38,7 @@ export default function Dashboard({ store }) {
     buildExportData, buildMarkdownExport, buildPrintHTML,
   } = store
 
-  const userName = user?.user_metadata?.name || user?.name || user?.email?.split('@')[0] || 'You'
+  const userName = profile?.display_name || user?.user_metadata?.name || user?.name || user?.email?.split('@')[0] || 'You'
   const initial = userName.charAt(0).toUpperCase()
 
   return (
@@ -115,6 +117,22 @@ export default function Dashboard({ store }) {
             >
               <Download size={13} />
               <span className="desktop-only">Export</span>
+            </button>
+
+            {/* Settings */}
+            <button
+              onClick={() => setShowSettings(true)}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--color-text-muted)', padding: '6px 8px',
+                display: 'flex', alignItems: 'center', gap: 5, fontSize: 12,
+                fontFamily: 'var(--font-body)', borderRadius: 7, transition: 'color 0.15s ease',
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--color-text-primary)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}
+              title="Settings"
+            >
+              <Settings size={13} />
             </button>
 
             {/* User avatar */}
@@ -270,6 +288,13 @@ export default function Dashboard({ store }) {
             buildExportData={buildExportData}
             buildMarkdownExport={buildMarkdownExport}
             buildPrintHTML={buildPrintHTML}
+          />
+        )}
+        {showSettings && (
+          <SettingsModal 
+            onClose={() => setShowSettings(false)} 
+            profile={profile} 
+            updateProfile={updateProfile} 
           />
         )}
       </AnimatePresence>

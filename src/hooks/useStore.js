@@ -65,6 +65,7 @@ export function useStore() {
   const [sleepLogs, setSleepLogs] = useState([])
   const [reflections, setReflections] = useState({})
   const [journalEntries, setJournalEntries] = useState([]) // Full journal entries
+  const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [authMode, setAuthMode] = useState('login')
 
@@ -111,7 +112,9 @@ export function useStore() {
       setMoods(LS.get(`kaizen_moods_${uid}`, []))
       setSleepLogs(LS.get(`kaizen_sleep_${uid}`, []))
       setReflections(LS.get(`kaizen_reflections_${uid}`, {}))
+      setReflections(LS.get(`kaizen_reflections_${uid}`, {}))
       setJournalEntries(LS.get(`kaizen_journal_${uid}`, []))
+      setProfile(LS.get(`kaizen_profile_${uid}`, { kaizen_id: 'KZN-DEMO', username: 'demo_user', display_name: 'You', private_growth_mode: false }))
     } else {
       loadFromSupabase(user.id)
     }
@@ -125,6 +128,7 @@ export function useStore() {
       { data: sleepData },
       { data: refData },
       { data: journalData },
+      { data: profileData },
     ] = await Promise.all([
       supabase.from('habits').select('*').eq('user_id', uid).order('created_at'),
       supabase.from('habit_completions').select('*').eq('user_id', uid),
@@ -132,6 +136,7 @@ export function useStore() {
       supabase.from('sleep_logs').select('*').eq('user_id', uid).order('date', { ascending: false }),
       supabase.from('reflections').select('*').eq('user_id', uid),
       supabase.from('journal_entries').select('*').eq('user_id', uid).order('date', { ascending: false }),
+      supabase.from('profiles').select('*').eq('id', uid).single(),
     ])
     setHabits(habitsData || [])
     const compMap = {}
@@ -143,7 +148,21 @@ export function useStore() {
     ;(refData || []).forEach(r => { refMap[r.date] = r.content })
     setReflections(refMap)
     setJournalEntries(journalData || [])
+    if (profileData) setProfile(profileData)
   }
+
+  const updateProfile = async (updates) => {
+    if (isDemo) {
+      const updated = { ...profile, ...updates }
+      setProfile(updated)
+      LS.set(`kaizen_profile_${user.id}`, updated)
+      return { error: null }
+    }
+    const { data, error } = await supabase.from('profiles').update(updates).eq('id', user.id).select().single()
+    if (!error && data) setProfile(data)
+    return { error }
+  }
+
 
   // â”€â”€ Auth actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const signUp = async (email, password, name) => {
@@ -809,10 +828,10 @@ export function useStore() {
   }, [habits, completions, moods, sleepLogs, journalEntries])
 
   return {
-    user, loading, habits, completions, moods, sleepLogs, reflections, journalEntries,
+    user, profile, loading, habits, completions, moods, sleepLogs, reflections, journalEntries,
 
     authMode, setAuthMode, isDemo, enterDemoMode,
-    signUp, signIn, signOut,
+    signUp, signIn, signOut, updateProfile,
     addHabit, deleteHabit, toggleCompletion,
     logMood, logSleep, saveReflection,
     saveJournalEntry, deleteJournalEntry, getJournalEntry,
