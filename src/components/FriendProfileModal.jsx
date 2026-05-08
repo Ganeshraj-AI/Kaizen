@@ -44,7 +44,14 @@ export default function FriendProfileModal({ friend, onClose, getFriendActivity 
         return
       }
       try {
-        const activity = await getFriendActivity(friend.id)
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Unable to load shared journey right now.')), 5000)
+        )
+        const activity = await Promise.race([
+          getFriendActivity(friend.id),
+          timeoutPromise
+        ])
+        
         if (mounted && activity) {
           setData({
             habits: Array.isArray(activity.habits) ? activity.habits : [],
@@ -54,7 +61,7 @@ export default function FriendProfileModal({ friend, onClose, getFriendActivity 
         }
       } catch (err) {
         console.error('Failed to load friend activity', err)
-        if (mounted) setError(err.message || 'Failed to load profile')
+        if (mounted) setError(err.message || 'Unable to load shared journey right now.')
       } finally {
         if (mounted) setLoading(false)
       }
@@ -114,7 +121,7 @@ export default function FriendProfileModal({ friend, onClose, getFriendActivity 
             {error ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: 32, textAlign: 'center', color: '#EF4444', background: '#FEF2F2', borderRadius: 16 }}>
                 <AlertCircle size={24} style={{ marginBottom: 12, opacity: 0.8 }} />
-                <p style={{ fontSize: 14, fontWeight: 500 }}>Could not load activity</p>
+                <p style={{ fontSize: 14, fontWeight: 500 }}>{error}</p>
                 <p style={{ fontSize: 12, opacity: 0.8, marginTop: 4 }}>The connection dropped or this profile is unavailable.</p>
               </motion.div>
             ) : loading ? (
