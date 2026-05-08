@@ -34,7 +34,7 @@ export default function Dashboard({ store }) {
     user, profile, habits, completions, moods, sleepLogs, reflections, journalEntries,
     signOut, addHabit, deleteHabit, toggleCompletion, updateProfile,
     logMood, logSleep, saveReflection,
-    saveJournalEntry, deleteJournalEntry, getJournalEntry, getInsights,
+    saveJournalEntry, shareReflectionSnippet, deleteJournalEntry, getJournalEntry, getInsights,
     getStreakForHabit, getOverallStreak, getWeeklyCompletionRate,
     getHeatmapData, getTodayRate, isDemo,
     buildExportData, buildMarkdownExport, buildPrintHTML,
@@ -272,7 +272,7 @@ export default function Dashboard({ store }) {
             {activeTab === 'journal' && (
               <Journal
                 journalEntries={journalEntries} getJournalEntry={getJournalEntry}
-                saveJournalEntry={saveJournalEntry} deleteJournalEntry={deleteJournalEntry}
+                saveJournalEntry={saveJournalEntry} shareReflectionSnippet={shareReflectionSnippet} deleteJournalEntry={deleteJournalEntry}
                 habits={habits} completions={completions} moods={moods} sleepLogs={sleepLogs}
               />
             )}

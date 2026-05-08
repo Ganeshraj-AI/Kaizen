@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, UserPlus, Check, X, UserMinus, User, Clock, Shield } from 'lucide-react'
 import { useSocial } from '../hooks/useSocial'
+import FriendProfileModal from './FriendProfileModal'
 
 export default function NetworkDashboard() {
   const {
@@ -20,6 +21,7 @@ export default function NetworkDashboard() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [isSearching, setIsSearching] = useState(false)
+  const [selectedFriend, setSelectedFriend] = useState(null)
 
   // Debounced search
   useEffect(() => {
@@ -43,8 +45,19 @@ export default function NetworkDashboard() {
     setActiveTab('requests')
   }
 
-  const renderProfileRow = (profile, actionButton) => (
-    <div key={profile.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'white', borderRadius: 12, marginBottom: 8, border: '1px solid var(--color-border)' }}>
+  const renderProfileRow = (profile, actionButton, onClickRow = null) => (
+    <div 
+      key={profile.id} 
+      style={{ 
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+        padding: '12px 16px', background: 'white', borderRadius: 12, marginBottom: 8, 
+        border: '1px solid var(--color-border)', cursor: onClickRow ? 'pointer' : 'default',
+        transition: 'all 0.15s ease'
+      }}
+      onClick={onClickRow}
+      onMouseEnter={e => { if (onClickRow) e.currentTarget.style.transform = 'translateY(-1px)'; if (onClickRow) e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.03)' }}
+      onMouseLeave={e => { if (onClickRow) e.currentTarget.style.transform = 'translateY(0)'; if (onClickRow) e.currentTarget.style.boxShadow = 'none' }}
+    >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--color-lavender-mid)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-purple-dark)', fontWeight: 600 }}>
           {profile.display_name?.charAt(0).toUpperCase()}
@@ -100,10 +113,15 @@ export default function NetworkDashboard() {
             <div>
               <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Your Circle ({friends.length})</p>
               {friends.map(f => renderProfileRow(f, (
-                <button onClick={() => removeFriend(f.id)} className="btn-ghost" style={{ padding: '6px 10px', color: '#EF4444' }} title="Remove friend">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); removeFriend(f.id) }} 
+                  className="btn-ghost" 
+                  style={{ padding: '6px 10px', color: '#EF4444' }} 
+                  title="Remove friend"
+                >
                   <UserMinus size={15} />
                 </button>
-              )))}
+              ), () => setSelectedFriend(f)))}
             </div>
           )}
         </motion.div>
@@ -187,6 +205,16 @@ export default function NetworkDashboard() {
           )}
         </motion.div>
       )}
+
+      <AnimatePresence>
+        {selectedFriend && (
+          <FriendProfileModal 
+            friend={selectedFriend} 
+            onClose={() => setSelectedFriend(null)} 
+            getFriendActivity={getFriendActivity} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

@@ -16,13 +16,14 @@ export default function AddHabitModal({ onClose, onAdd }) {
   const [emoji, setEmoji] = useState('✨')
   const [color, setColor] = useState('#8B5CF6')
   const [category, setCategory] = useState('General')
+  const [visibility, setVisibility] = useState('private')
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!name.trim()) return
     setLoading(true)
-    await onAdd({ name: name.trim(), emoji, color, category })
+    await onAdd({ name: name.trim(), emoji, color, category, visibility })
     setLoading(false)
     onClose()
   }
@@ -147,6 +148,39 @@ export default function AddHabitModal({ onClose, onAdd }) {
                     }}
                   >
                     {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Visibility */}
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 8 }}>
+                Visibility
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {[
+                  { id: 'private', label: 'Private (Only you)' },
+                  { id: 'friends', label: 'Circle (Trusted friends)' },
+                  { id: 'public', label: 'Public (Profile)' }
+                ].map(v => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => setVisibility(v.id)}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: 99,
+                      border: visibility === v.id ? '1.5px solid var(--color-purple)' : '1.5px solid var(--color-border)',
+                      background: visibility === v.id ? 'var(--color-lavender)' : 'white',
+                      color: visibility === v.id ? 'var(--color-purple)' : 'var(--color-text-secondary)',
+                      fontSize: 12, fontWeight: 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      fontFamily: 'var(--font-body)',
+                    }}
+                  >
+                    {v.label}
                   </button>
                 ))}
               </div>

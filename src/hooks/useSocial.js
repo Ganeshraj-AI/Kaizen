@@ -122,6 +122,45 @@ export function useSocial() {
     return { error: fError }
   }
 
+  const getFriendActivity = async (friendId) => {
+    // Habits (only friends or public visibility)
+    const { data: habitsData } = await supabase
+      .from('habits')
+      .select('*')
+      .eq('user_id', friendId)
+      .in('visibility', ['friends', 'public'])
+      .order('created_at')
+
+    // Completions for those habits
+    const habitIds = (habitsData || []).map(h => h.id)
+    let compData = []
+    if (habitIds.length > 0) {
+      const { data } = await supabase
+        .from('habit_completions')
+        .select('*')
+        .eq('user_id', friendId)
+        .in('habit_id', habitIds)
+      compData = data || []
+    }
+
+    const compMap = {}
+    compData.forEach(c => { compMap[`${c.habit_id}_${c.date}`] = true })
+
+    // Shared reflections
+    const { data: reflectionsData } = await supabase
+      .from('shared_reflections')
+      .select('*')
+      .eq('user_id', friendId)
+      .order('created_at', { ascending: false })
+      .limit(10)
+
+    return {
+      habits: habitsData || [],
+      completions: compMap,
+      sharedReflections: reflectionsData || []
+    }
+  }
+
   return {
     friends,
     pendingRequests,
@@ -132,6 +171,7 @@ export function useSocial() {
     acceptFriendRequest,
     rejectFriendRequest,
     removeFriend,
+    getFriendActivity,
     refreshNetwork: loadNetwork
   }
 }

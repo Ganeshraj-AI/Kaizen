@@ -47,16 +47,26 @@ function ListInput({ label, items, onChange, placeholder }) {
   )
 }
 
-function EntryEditor({ entry, onSave, onDelete, onClose }) {
+function EntryEditor({ entry, onSave, onDelete, onClose, onShareSnippet }) {
   const [form, setForm] = useState(entry)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  
+  // Snippet sharing state
+  const [shareSnippet, setShareSnippet] = useState(false)
+  const [snippetType, setSnippetType] = useState('summary')
+  const [snippetContent, setSnippetContent] = useState('')
 
   const set = (key, val) => setForm(p => ({ ...p, [key]: val }))
 
   const handleSave = async () => {
     setSaving(true)
-    await onSave(form)
+    const { data, error } = await onSave(form)
+    if (data?.id && shareSnippet && snippetContent.trim().length > 0) {
+      await onShareSnippet(data.id, snippetType, snippetContent.trim())
+      setShareSnippet(false)
+      setSnippetContent('')
+    }
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -131,6 +141,49 @@ function EntryEditor({ entry, onSave, onDelete, onClose }) {
             ))}
           </div>
         </div>
+
+        {/* Share Snippet */}
+        {onShareSnippet && (
+          <div style={{ padding: 16, background: 'rgba(245,243,255,0.6)', borderRadius: 12, border: '1px solid var(--color-lavender-mid)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: 'var(--color-purple-dark)', cursor: 'pointer' }}>
+              <input 
+                type="checkbox" 
+                checked={shareSnippet} 
+                onChange={e => setShareSnippet(e.target.checked)} 
+                style={{ accentColor: 'var(--color-purple)' }}
+              />
+              Share a snippet to your Circle
+            </label>
+            <AnimatePresence>
+              {shareSnippet && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ overflow: 'hidden' }}>
+                  <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <select 
+                      className="input-field" 
+                      value={snippetType} 
+                      onChange={e => setSnippetType(e.target.value)}
+                      style={{ padding: '6px 10px', fontSize: 12, color: 'var(--color-text-secondary)' }}
+                    >
+                      <option value="summary">Thought/Summary</option>
+                      <option value="gratitude">Gratitude</option>
+                      <option value="quote">Quote of the day</option>
+                    </select>
+                    <textarea 
+                      className="input-field" 
+                      placeholder="Extract a short, safe thought to share... (Max 240 chars)" 
+                      value={snippetContent} 
+                      onChange={e => setSnippetContent(e.target.value.slice(0, 240))} 
+                      style={{ minHeight: 60, fontSize: 13 }} 
+                    />
+                    <div style={{ fontSize: 10, color: 'var(--color-text-muted)', textAlign: 'right' }}>
+                      {snippetContent.length}/240
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 8, paddingTop: 12, borderTop: '1px solid var(--color-border)', flexShrink: 0 }}>
@@ -147,7 +200,7 @@ function EntryEditor({ entry, onSave, onDelete, onClose }) {
   )
 }
 
-export default function Journal({ journalEntries, getJournalEntry, saveJournalEntry, deleteJournalEntry, habits, completions, moods, sleepLogs }) {
+export default function Journal({ journalEntries, getJournalEntry, saveJournalEntry, shareReflectionSnippet, deleteJournalEntry, habits, completions, moods, sleepLogs }) {
   const today = todayISO()
   const [selectedDate, setSelectedDate] = useState(today)
   const [search, setSearch] = useState('')
@@ -300,6 +353,7 @@ export default function Journal({ journalEntries, getJournalEntry, saveJournalEn
                 entry={selectedEntry}
                 onSave={saveJournalEntry}
                 onDelete={getJournalEntry(selectedDate) ? deleteJournalEntry : null}
+                onShareSnippet={shareReflectionSnippet}
               />
             </motion.div>
           </AnimatePresence>

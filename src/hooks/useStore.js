@@ -208,12 +208,13 @@ export function useStore() {
     await supabase.auth.signOut()
   }
 
-  // â”€â”€ Habit CRUD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const addHabit = async ({ name, emoji, color, category }) => {
+  // ——— Habit CRUD ———————————————————————————————————————————————————————————
+  const addHabit = async ({ name, emoji, color, category, visibility }) => {
     const habit = {
       id: `h_${Date.now()}`, user_id: user.id,
-      name, emoji: emoji || 'âœ¨', color: color || '#8B5CF6',
-      category: category || 'General', created_at: new Date().toISOString(),
+      name, emoji: emoji || '✨', color: color || '#8B5CF6',
+      category: category || 'General', visibility: visibility || 'private',
+      created_at: new Date().toISOString(),
     }
     if (isDemo) {
       const updated = [...habits, habit]
@@ -333,8 +334,26 @@ export function useStore() {
     if (existing?.id) dbRecord.id = existing.id
     
     const { data, error } = await supabase.from('journal_entries').upsert(dbRecord).select().single()
-    if (!error) setJournalEntries(prev => [data, ...prev.filter(e => e.date !== entry.date)])
-    return { error, data }
+    if (!error) {
+      setReflections(prev => ({ ...prev, [entry.date]: dbRecord.reflection }))
+      setJournalEntries(prev => {
+        const idx = prev.findIndex(x => x.date === entry.date)
+        if (idx >= 0) return [...prev.slice(0, idx), data, ...prev.slice(idx + 1)]
+        return [data, ...prev].sort((a, b) => new Date(b.date) - new Date(a.date))
+      })
+    }
+    return { data, error }
+  }
+
+  const shareReflectionSnippet = async (journalId, type, content) => {
+    if (isDemo) return { error: null }
+    const { error } = await supabase.from('shared_reflections').insert([{
+      user_id: user.id,
+      journal_id: journalId,
+      snippet_type: type,
+      content
+    }])
+    return { error }
   }
 
   const deleteJournalEntry = async (date) => {
@@ -353,7 +372,7 @@ export function useStore() {
     return journalEntries.find(e => e.date === date) || null
   }, [journalEntries])
 
-  // â”€â”€ Cross-data Insights â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ——— Cross-data Insights ———————————————————————————————————————————————————————————
   const getInsights = useCallback(() => {
     const insights = []
     if (habits.length === 0 || moods.length < 3) return insights
@@ -372,7 +391,7 @@ export function useStore() {
       const avgMoodLowHabit = lowHabitDays.length > 0
         ? lowHabitDays.reduce((s, d) => s + d.mood, 0) / lowHabitDays.length : 0
       if (avgMoodHighHabit > avgMoodLowHabit + 0.5) {
-        insights.push('You tend to feel calmer on days you complete more habits âœ¨')
+        insights.push('You tend to feel calmer on days you complete more habits ✨')
       }
     }
 
@@ -387,7 +406,7 @@ export function useStore() {
         const avgMoodGoodSleep = goodSleep.length > 0
           ? goodSleep.reduce((s, p) => s + p.mood, 0) / goodSleep.length : 0
         if (avgMoodGoodSleep >= 4) {
-          insights.push('Your best weeks include more restful sleep ðŸŒ™')
+          insights.push('Your best weeks include more restful sleep 🌙')
         }
       }
     }
@@ -399,13 +418,13 @@ export function useStore() {
     })
     const journaledDays = last14.filter(d => journalEntries.some(e => e.date === d)).length
     if (journaledDays >= 7) {
-      insights.push('Journaling regularly keeps you grounded â€” keep going ðŸ““')
+      insights.push('Journaling regularly keeps you grounded — keep going 📖')
     }
 
     return insights.slice(0, 3)
   }, [habits, completions, moods, sleepLogs, journalEntries])
 
-  // â”€â”€ Computed stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ——— Computed stats ———————————————————————————————————————————————————————————
   const getStreakForHabit = useCallback((habitId) => {
     let streak = 0, best = 0, current = 0
     const today = new Date()
@@ -468,7 +487,7 @@ export function useStore() {
     return Math.round((done / habits.length) * 100)
   }, [habits, completions])
 
-  // â”€â”€ Export â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ——— Export ———————————————————————————————————————————————————————————
   const buildExportData = useCallback(() => ({
     exported_at: new Date().toISOString(),
     habits,
@@ -480,7 +499,7 @@ export function useStore() {
   }), [habits, completions, moods, sleepLogs, journalEntries, reflections])
 
   const buildMarkdownExport = useCallback(() => {
-    const lines = ['# Kaizen â€“ Life Journal Export', `_Exported on ${new Date().toLocaleDateString('en-US', { dateStyle: 'long' })}_`, '']
+    const lines = ['# Kaizen – Life Journal Export', `_Exported on ${new Date().toLocaleDateString('en-US', { dateStyle: 'long' })}_`, '']
     lines.push('## Habits', '')
     habits.forEach(h => lines.push(`- ${h.emoji} **${h.name}** (${h.category})`))
     lines.push('')
@@ -489,7 +508,7 @@ export function useStore() {
       journalEntries.forEach(e => {
         lines.push(`### ${formatDateFull(e.date)}`)
         if (e.title) lines.push(`**${e.title}**`, '')
-        if (e.mood) lines.push(`Mood: ${'â­'.repeat(e.mood)}`, '')
+        if (e.mood) lines.push(`Mood: ${'★ '.repeat(e.mood)}`, '')
         if (e.reflection) lines.push(`${e.reflection}`, '')
         if (e.wins?.length) { lines.push('**Wins:**'); e.wins.forEach(w => lines.push(`- ${w}`)); lines.push('') }
         if (e.struggles?.length) { lines.push('**Struggles:**'); e.struggles.forEach(s => lines.push(`- ${s}`)); lines.push('') }
@@ -502,7 +521,7 @@ export function useStore() {
       lines.push('## Mood Log', '')
       moods.slice(0, 30).forEach(m => {
         const labels = ['', 'Hard', 'Low', 'Okay', 'Good', 'Amazing']
-        lines.push(`- **${formatDate(m.date)}**: ${labels[m.mood]}${m.note ? ` â€” ${m.note}` : ''}`)
+        lines.push(`- **${formatDate(m.date)}**: ${labels[m.mood]}${m.note ? ` — ${m.note}` : ''}`)
       })
       lines.push('')
     }
@@ -514,7 +533,7 @@ export function useStore() {
     const monthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     const dateStr = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
-    // â”€â”€ Compute meaningful stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Compute meaningful stats ——————————————————————————————————————
     const activeDays = Object.values(
       habits.reduce((acc, h) => {
         Object.keys(completions).filter(k => k.startsWith(h.id + '_')).forEach(k => { acc[k.split('_')[1]] = true })
@@ -561,29 +580,29 @@ export function useStore() {
     const allWins = journalEntries.flatMap(e => e.wins || [])
     const allGratitude = journalEntries.flatMap(e => e.gratitude || [])
 
-    // â”€â”€ Narrative paragraphs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Narrative paragraphs ——————————————————————————————————————
     const habitNarrative = (() => {
-      if (habits.length === 0) return "You haven't started tracking rituals yet. That's okay â€” every beginning starts somewhere."
+      if (habits.length === 0) return "You haven't started tracking rituals yet. That's okay — every beginning starts somewhere."
       if (activeLast30 === 0) return "This period has been quieter. Rest and pausing are part of any sustainable rhythm. You can always begin again."
       const consistency = Math.round((activeLast30 / 30) * 100)
-      if (consistency >= 80) return `You showed up on ${activeLast30} of the last 30 days â€” a remarkable level of consistency. You're not just tracking habits, you're building identity.`
+      if (consistency >= 80) return `You showed up on ${activeLast30} of the last 30 days — a remarkable level of consistency. You're not just tracking habits, you're building identity.`
       if (consistency >= 50) return `You were present on ${activeLast30} of the last 30 days. More than half. That's real, even when it doesn't feel like enough.`
-      return `You engaged on ${activeLast30} days this period. Some months are harder. What matters is that you returned â€” and you're here now.`
+      return `You engaged on ${activeLast30} days this period. Some months are harder. What matters is that you returned — and you're here now.`
     })()
 
     const moodNarrative = (() => {
-      if (!avgMood || moods.length < 3) return "You haven't logged many moods yet. Tracking how you feel â€” even briefly â€” can reveal patterns you didn't know were there."
+      if (!avgMood || moods.length < 3) return "You haven't logged many moods yet. Tracking how you feel — even briefly — can reveal patterns you didn't know were there."
       const score = parseFloat(avgMood)
       const label = avgMoodLabel
-      if (score >= 4) return `Your emotional landscape this period was predominantly ${label}. You carried yourself well. On your harder days, you still showed up â€” and that says something real about your character.`
-      if (score >= 3) return `Your average mood was ${label} â€” mostly in the middle, which is honest and human. Life isn't always dramatic. Sometimes 'okay' is deeply meaningful.`
-      return `This has been a harder period emotionally. Your average mood trended toward ${label}. Be gentle with yourself â€” logging these days takes courage, and recognizing difficulty is the first step through it.`
+      if (score >= 4) return `Your emotional landscape this period was predominantly ${label}. You carried yourself well. On your harder days, you still showed up — and that says something real about your character.`
+      if (score >= 3) return `Your average mood was ${label} — mostly in the middle, which is honest and human. Life isn't always dramatic. Sometimes 'okay' is deeply meaningful.`
+      return `This has been a harder period emotionally. Your average mood trended toward ${label}. Be gentle with yourself — logging these days takes courage, and recognizing difficulty is the first step through it.`
     })()
 
     const sleepNarrative = (() => {
-      if (!avgSleep) return "Sleep data isn't available for this period. Rest shapes almost everything â€” how you feel, think, and connect. Consider logging it."
+      if (!avgSleep) return "Sleep data isn't available for this period. Rest shapes almost everything — how you feel, think, and connect. Consider logging it."
       const hours = parseFloat(avgSleep)
-      if (hours >= 7.5) return `You averaged ${avgSleep} hours of sleep â€” restful and restorative. This shows up everywhere: in your mood, your focus, your patience with yourself. Rest is never wasted.`
+      if (hours >= 7.5) return `You averaged ${avgSleep} hours of sleep — restful and restorative. This shows up everywhere: in your mood, your focus, your patience with yourself. Rest is never wasted.`
       if (hours >= 6) return `You averaged ${avgSleep} hours of sleep this period. Some nights were lighter than ideal, but you kept moving. When rest improves, everything else tends to follow.`
       return `Your sleep has been lighter than ideal this period, averaging ${avgSleep} hours. Your body and mind are telling you something. Deep rest is the foundation everything else is built on.`
     })()
@@ -592,7 +611,7 @@ export function useStore() {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Kaizen â€” Personal Growth Letter</title>
+  <title>Kaizen — Personal Growth Letter</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;400;500&display=swap" rel="stylesheet">
   <style>
@@ -615,7 +634,7 @@ export function useStore() {
       overflow: hidden;
     }
 
-    /* â”€â”€ Header â”€â”€ */
+    /* ——— Header ——— */
     .header {
       display: flex; justify-content: space-between; align-items: flex-end;
       padding-bottom: 12px; border-bottom: 1.5px solid #1A1035;
@@ -628,10 +647,10 @@ export function useStore() {
 
     .tagline { font-family: 'DM Serif Display', serif; font-size: 11px; font-style: italic; color: #7C5CBF; margin-top: 8px; margin-bottom: 0; }
 
-    /* â”€â”€ Grid body â”€â”€ */
+    /* ——— Grid body ——— */
     .body { display: grid; grid-template-columns: 1fr 1fr; column-gap: 22px; row-gap: 0; padding-top: 16px; }
 
-    /* â”€â”€ Sections â”€â”€ */
+    /* ——— Sections ——— */
     .section { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid #EAE6F4; }
     .section:last-child { border-bottom: none; }
     .section-label { font-size: 8px; letter-spacing: 0.16em; text-transform: uppercase; color: #7C5CBF; font-weight: 600; margin-bottom: 6px; }
@@ -639,26 +658,26 @@ export function useStore() {
     .section-heading { font-family: 'DM Serif Display', serif; font-size: 16px; color: #1A1035; margin-bottom: 8px; line-height: 1.2; }
     .section-body { font-size: 11px; color: #4A3D72; line-height: 1.65; }
 
-    /* â”€â”€ Stat callout â”€â”€ */
+    /* ——— Stat callout ——— */
     .stat-row { display: flex; gap: 12px; margin-bottom: 10px; }
     .stat-block { flex: 1; }
     .stat-num { font-family: 'DM Serif Display', serif; font-size: 28px; color: #1A1035; line-height: 1; letter-spacing: -1px; }
     .stat-desc { font-size: 10px; color: #9B93B8; margin-top: 2px; line-height: 1.4; }
 
-    /* â”€â”€ Journal quote â”€â”€ */
+    /* ——— Journal quote ——— */
     .quote-block { padding: 12px 16px; background: rgba(124,92,191,0.04); border-left: 2px solid rgba(196,181,253,0.6); border-radius: 0 8px 8px 0; margin: 8px 0; }
     .quote-text { font-family: 'DM Serif Display', serif; font-size: 12px; font-style: italic; color: #1A1035; line-height: 1.55; }
     .quote-date { font-size: 9px; color: #9B93B8; margin-top: 5px; }
 
-    /* â”€â”€ List â”€â”€ */
+    /* ——— List ——— */
     .item-list { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
     .item { font-size: 10px; color: #4A3D72; padding: 4px 0; border-bottom: 1px solid rgba(234,230,244,0.5); display: flex; gap: 8px; align-items: flex-start; }
     .item-bullet { color: #7C5CBF; font-size: 8px; margin-top: 3px; flex-shrink: 0; }
 
-    /* â”€â”€ Habits row â”€â”€ */
+    /* ——— Habits row ——— */
     .habit-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: rgba(245,243,255,0.8); border: 1px solid rgba(196,181,253,0.3); border-radius: 99px; font-size: 9px; color: #4A3D72; margin: 2px; }
 
-    /* â”€â”€ Footer â”€â”€ */
+    /* ——— Footer ——— */
     .footer { border-top: 1px solid #EAE6F4; padding-top: 10px; display: flex; justify-content: space-between; align-items: center; }
     .footer-brand { font-family: 'DM Serif Display', serif; font-size: 12px; color: #C4B5FD; }
     .footer-note { font-size: 9px; color: #C4B5FD; letter-spacing: 0.05em; font-style: italic; }
@@ -683,7 +702,7 @@ export function useStore() {
     <p class="tagline">"Small steps. Lasting change."</p>
   </div>
 
-  <!-- Opening paragraph â€” full width -->
+  <!-- Opening paragraph — full width -->
   <div style="padding: 14px 0 0; border-bottom: 1px solid #EAE6F4; margin-bottom: 0;">
     <p style="font-family: 'DM Serif Display', serif; font-size: 13px; color: #1A1035; line-height: 1.65; font-style: italic; padding-bottom: 14px;">
       ${habitNarrative}
@@ -714,11 +733,11 @@ export function useStore() {
               <div class="stat-desc">days in a row at your best</div>
             </div>` : ''}
           </div>
-          ${topHabit ? `<p class="section-body">Your most consistent ritual was <strong>${topHabit.name}</strong> â€” present ${topHabit.done} times in the last 30 days. Some habits quietly become part of who you are.</p>` : ''}
+          ${topHabit ? `<p class="section-body">Your most consistent ritual was <strong>${topHabit.name}</strong> — present ${topHabit.done} times in the last 30 days. Some habits quietly become part of who you are.</p>` : ''}
           <div style="margin-top: 8px;">
             ${habits.slice(0, 8).map(h => `<span class="habit-tag">${h.name}</span>`).join('')}
           </div>
-        ` : `<p class="section-body">No rituals tracked yet. Begin with one small thing â€” consistency follows from there.</p>`}
+        ` : `<p class="section-body">No rituals tracked yet. Begin with one small thing — consistency follows from there.</p>`}
       </div>
 
       <!-- Mood section -->
@@ -766,12 +785,12 @@ export function useStore() {
         <p class="section-body" style="margin-bottom: 8px;">
           ${journalEntries.length > 0
             ? `You wrote ${journalEntries.length} ${journalEntries.length === 1 ? 'entry' : 'entries'}. Writing is how we make sense of what we're living through.`
-            : `Your journal is waiting. Even a single sentence â€” how you felt, what you noticed â€” becomes something meaningful to return to.`}
+            : `Your journal is waiting. Even a single sentence — how you felt, what you noticed — becomes something meaningful to return to.`}
         </p>
         ${bestJournal?.reflection ? `
           <div class="quote-block">
-            <div class="quote-text">"${bestJournal.reflection.slice(0, 280)}${bestJournal.reflection.length > 280 ? 'â€¦' : ''}"</div>
-            ${bestJournal.date ? `<div class="quote-date">â€” ${bestJournal.date}</div>` : ''}
+            <div class="quote-text">"${bestJournal.reflection.slice(0, 280)}${bestJournal.reflection.length > 280 ? '…' : ''}"</div>
+            ${bestJournal.date ? `<div class="quote-date">— ${bestJournal.date}</div>` : ''}
           </div>
         ` : ''}
       </div>
@@ -783,7 +802,7 @@ export function useStore() {
         <div class="item-list">
           ${allWins.slice(0, 5).map(w => `
             <div class="item">
-              <span class="item-bullet">â—†</span>
+              <span class="item-bullet">◆</span>
               <span>${w}</span>
             </div>
           `).join('')}
@@ -798,7 +817,7 @@ export function useStore() {
         <div class="item-list">
           ${allGratitude.slice(0, 4).map(g => `
             <div class="item">
-              <span class="item-bullet">â™¡</span>
+              <span class="item-bullet">♡</span>
               <span>${g}</span>
             </div>
           `).join('')}
@@ -834,7 +853,7 @@ export function useStore() {
     signUp, signIn, signOut, updateProfile,
     addHabit, deleteHabit, toggleCompletion,
     logMood, logSleep, saveReflection,
-    saveJournalEntry, deleteJournalEntry, getJournalEntry,
+    saveJournalEntry, shareReflectionSnippet, deleteJournalEntry, getJournalEntry,
     getInsights,
     getStreakForHabit, getOverallStreak, getWeeklyCompletionRate,
     getHeatmapData, getTodayRate,
