@@ -1,115 +1,127 @@
--- ═══════════════════════════════════════════════════
--- Kaizen – Supabase Database Schema
--- Run this in your Supabase SQL Editor
--- ═══════════════════════════════════════════════════
+-- ==============================================================
+-- KAIZEN - SUPABASE SCHEMA
+-- This schema matches the latest frontend structure for all features:
+-- habits, habit_completions, mood_logs, sleep_logs, reflections, journal_entries
+-- ==============================================================
 
--- Enable RLS
-alter table if exists public.habits enable row level security;
+-- Disable notices for clean output
+SET client_min_messages = warning;
 
--- ── Habits ───────────────────────────────────────
-create table if not exists public.habits (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid references auth.users(id) on delete cascade not null,
-  name        text not null,
-  emoji       text default '✨',
-  color       text default '#8B5CF6',
-  category    text default 'General',
-  created_at  timestamptz default now()
+-- ==============================================================
+-- 1. DROP EXISTING TABLES TO ENSURE CLEAN CREATION
+-- ==============================================================
+DROP TABLE IF EXISTS public.habit_completions CASCADE;
+DROP TABLE IF EXISTS public.habits CASCADE;
+DROP TABLE IF EXISTS public.mood_logs CASCADE;
+DROP TABLE IF EXISTS public.sleep_logs CASCADE;
+DROP TABLE IF EXISTS public.reflections CASCADE;
+DROP TABLE IF EXISTS public.journal_entries CASCADE;
+
+-- ==============================================================
+-- 2. CREATE TABLES
+-- ==============================================================
+
+-- HABITS
+CREATE TABLE public.habits (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    emoji TEXT,
+    color TEXT,
+    category TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
 );
 
-create policy "Users manage own habits"
-  on public.habits for all
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
-
--- ── Habit Completions ─────────────────────────────
-create table if not exists public.habit_completions (
-  id          uuid primary key default gen_random_uuid(),
-  habit_id    uuid references public.habits(id) on delete cascade not null,
-  user_id     uuid references auth.users(id) on delete cascade not null,
-  date        date not null,
-  created_at  timestamptz default now(),
-  unique(habit_id, date)
+-- HABIT COMPLETIONS
+-- Primary key is (habit_id, date) to allow clean upserts from the frontend
+CREATE TABLE public.habit_completions (
+    habit_id UUID NOT NULL REFERENCES public.habits(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    PRIMARY KEY (habit_id, date)
 );
 
-create policy "Users manage own completions"
-  on public.habit_completions for all
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
-
--- ── Mood Logs ─────────────────────────────────────
-create table if not exists public.mood_logs (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid references auth.users(id) on delete cascade not null,
-  date        date not null,
-  mood        integer not null check (mood between 1 and 5),
-  note        text default '',
-  logged_at   timestamptz default now(),
-  unique(user_id, date)
+-- MOOD LOGS
+-- Primary key is (user_id, date) for daily upserts
+CREATE TABLE public.mood_logs (
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    mood INTEGER CHECK (mood >= 1 AND mood <= 5),
+    note TEXT,
+    logged_at TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (user_id, date)
 );
 
-create policy "Users manage own mood logs"
-  on public.mood_logs for all
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
-
--- ── Sleep Logs ────────────────────────────────────
-create table if not exists public.sleep_logs (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid references auth.users(id) on delete cascade not null,
-  date        date not null,
-  hours       numeric(4,1) not null check (hours >= 0 and hours <= 24),
-  created_at  timestamptz default now(),
-  unique(user_id, date)
+-- SLEEP LOGS
+-- Primary key is (user_id, date) for daily upserts
+CREATE TABLE public.sleep_logs (
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    hours NUMERIC,
+    PRIMARY KEY (user_id, date)
 );
 
-create policy "Users manage own sleep logs"
-  on public.sleep_logs for all
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
-
--- ── Reflections ───────────────────────────────────
-create table if not exists public.reflections (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid references auth.users(id) on delete cascade not null,
-  date        date not null,
-  content     text not null,
-  updated_at  timestamptz default now(),
-  unique(user_id, date)
+-- REFLECTIONS (Backward Compatibility)
+CREATE TABLE public.reflections (
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    content TEXT,
+    PRIMARY KEY (user_id, date)
 );
 
-create policy "Users manage own reflections"
-  on public.reflections for all
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
-
--- ── Journal Entries ───────────────────────────────
-create table if not exists public.journal_entries (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid references auth.users(id) on delete cascade not null,
-  date        date not null,
-  title       text default '',
-  mood        integer check (mood between 1 and 5),
-  reflection  text default '',
-  wins        jsonb default '[]',
-  struggles   jsonb default '[]',
-  notes       text default '',
-  gratitude   jsonb default '[]',
-  tags        jsonb default '[]',
-  created_at  timestamptz default now(),
-  updated_at  timestamptz default now(),
-  unique(user_id, date)
+-- JOURNAL ENTRIES
+CREATE TABLE public.journal_entries (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    title TEXT,
+    mood INTEGER,
+    reflection TEXT,
+    wins JSONB DEFAULT '[]'::jsonb,
+    struggles JSONB DEFAULT '[]'::jsonb,
+    gratitude JSONB DEFAULT '[]'::jsonb,
+    notes TEXT,
+    tags JSONB DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (user_id, date)
 );
 
-create policy "Users manage own journal entries"
-  on public.journal_entries for all
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
+-- ==============================================================
+-- 3. ENABLE ROW LEVEL SECURITY (RLS)
+-- ==============================================================
 
--- ── Enable RLS on all tables ──────────────────────
-alter table public.habits enable row level security;
-alter table public.habit_completions enable row level security;
-alter table public.mood_logs enable row level security;
-alter table public.sleep_logs enable row level security;
-alter table public.reflections enable row level security;
-alter table public.journal_entries enable row level security;
+ALTER TABLE public.habits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.habit_completions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mood_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sleep_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reflections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.journal_entries ENABLE ROW LEVEL SECURITY;
+
+-- ==============================================================
+-- 4. CREATE POLICIES
+-- ==============================================================
+
+CREATE POLICY "Users can manage their own habits" 
+    ON public.habits FOR ALL 
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can manage their own habit completions" 
+    ON public.habit_completions FOR ALL 
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can manage their own mood logs" 
+    ON public.mood_logs FOR ALL 
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can manage their own sleep logs" 
+    ON public.sleep_logs FOR ALL 
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can manage their own reflections" 
+    ON public.reflections FOR ALL 
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can manage their own journal entries" 
+    ON public.journal_entries FOR ALL 
+    USING (auth.uid() = user_id);

@@ -68,7 +68,9 @@ export function useStore() {
   const [loading, setLoading] = useState(true)
   const [authMode, setAuthMode] = useState('login')
 
-  const isDemo = !isSupabaseConfigured
+  const [isDemo, setIsDemo] = useState(() => {
+    return !isSupabaseConfigured || LS.get('kaizen_demo_mode') === true
+  })
 
   // â”€â”€ Auth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
@@ -76,17 +78,24 @@ export function useStore() {
       const saved = LS.get('kaizen_user')
       if (saved) setUser(saved)
       setLoading(false)
-      return
+      if (!isSupabaseConfigured) return
     }
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
-    return () => subscription.unsubscribe()
-  }, [])
+    
+    if (isSupabaseConfigured) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!isDemo || !LS.get('kaizen_demo_mode')) {
+          setUser(session?.user ?? null)
+        }
+        setLoading(false)
+      })
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (!isDemo || !LS.get('kaizen_demo_mode')) {
+          setUser(session?.user ?? null)
+        }
+      })
+      return () => subscription.unsubscribe()
+    }
+  }, [isDemo])
 
   // â”€â”€ Load data when user changes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
@@ -159,8 +168,24 @@ export function useStore() {
     return { error }
   }
 
+  const enterDemoMode = () => {
+    LS.set('kaizen_demo_mode', true)
+    setIsDemo(true)
+    const u = { ...DEMO_USER }
+    LS.set('kaizen_user', u)
+    setUser(u)
+  }
+
   const signOut = async () => {
-    if (isDemo) { LS.set('kaizen_user', null); setUser(null); return }
+    if (isDemo) { 
+      LS.set('kaizen_user', null)
+      if (isSupabaseConfigured) {
+        LS.set('kaizen_demo_mode', false)
+        setIsDemo(false)
+      }
+      setUser(null)
+      return 
+    }
     await supabase.auth.signOut()
   }
 
@@ -177,7 +202,8 @@ export function useStore() {
       LS.set(`kaizen_habits_${user.id}`, updated)
       return { error: null }
     }
-    const { data, error } = await supabase.from('habits').insert([{ ...habit, id: undefined }]).select().single()
+    const { id, ...dbHabit } = habit
+    const { data, error } = await supabase.from('habits').insert([dbHabit]).select().single()
     if (!error) setHabits(prev => [...prev, data])
     return { error }
   }
@@ -283,7 +309,11 @@ export function useStore() {
       LS.set(`kaizen_journal_${user.id}`, updated)
       return { error: null, data: record }
     }
-    const { data, error } = await supabase.from('journal_entries').upsert({ ...record, id: existing?.id || undefined }).select().single()
+    
+    const { id, ...dbRecord } = record
+    if (existing?.id) dbRecord.id = existing.id
+    
+    const { data, error } = await supabase.from('journal_entries').upsert(dbRecord).select().single()
     if (!error) setJournalEntries(prev => [data, ...prev.filter(e => e.date !== entry.date)])
     return { error, data }
   }
@@ -781,7 +811,7 @@ export function useStore() {
   return {
     user, loading, habits, completions, moods, sleepLogs, reflections, journalEntries,
 
-    authMode, setAuthMode, isDemo,
+    authMode, setAuthMode, isDemo, enterDemoMode,
     signUp, signIn, signOut,
     addHabit, deleteHabit, toggleCompletion,
     logMood, logSleep, saveReflection,

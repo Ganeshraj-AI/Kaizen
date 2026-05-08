@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
-export default function AuthPage({ onSignIn, onSignUp, authMode, setAuthMode, isDemo }) {
+export default function AuthPage({ onSignIn, onSignUp, authMode, setAuthMode, isDemo, enterDemoMode }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
@@ -36,7 +36,7 @@ export default function AuthPage({ onSignIn, onSignUp, authMode, setAuthMode, is
   }
 
   const enterDemo = () => {
-    onSignIn('demo@kaizen.app', 'demo')
+    enterDemoMode()
   }
 
   return (

@@ -4,7 +4,7 @@ import Dashboard from './components/Dashboard'
 
 export default function App() {
   const store = useStore()
-  const { user, loading, signIn, signUp, authMode, setAuthMode, isDemo } = store
+  const { user, loading, signIn, signUp, authMode, setAuthMode, isDemo, enterDemoMode } = store
 
   if (loading) {
     return (
@@ -38,6 +38,7 @@ export default function App() {
         authMode={authMode}
         setAuthMode={setAuthMode}
         isDemo={isDemo}
+        enterDemoMode={enterDemoMode}
       />
     )
   }
